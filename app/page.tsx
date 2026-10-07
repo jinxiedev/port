@@ -16,17 +16,7 @@ const PrismHero = dynamic(() => import("@/components/ui/prism-hero"), {
   ),
 })
 
-const ContributionSkyline = dynamic(
-  () => import("@/components/ui/contribution-skyline"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="h-[280px] w-full flex items-center justify-center text-xs font-mono text-white/40">
-        Loading Skyline Visualization...
-      </div>
-    ),
-  }
-)
+import ContributionSkyline from "@/components/ui/contribution-skyline"
 
 export default function Home() {
   const [preloaderActive, setPreloaderActive] = React.useState(true)

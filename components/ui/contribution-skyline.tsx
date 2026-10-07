@@ -295,8 +295,8 @@ export interface ContributionSkylineProps {
   className?: string
 }
 
-const FG_FALLBACK: RGB = [23, 23, 23]
-const BG_FALLBACK: RGB = [255, 255, 255]
+const FG_FALLBACK: RGB = [237, 232, 223]
+const BG_FALLBACK: RGB = [12, 12, 16]
 
 // Any CSS colour → sRGB, by letting the browser paint it. Handles oklch, color-mix, names…
 let probe: CanvasRenderingContext2D | null = null
@@ -368,7 +368,7 @@ const CubeIcon = () => (
   </svg>
 )
 
-const MUTED = "var(--color-muted-foreground, #737373)"
+const MUTED = "rgba(237, 232, 223, 0.5)"
 
 function Stat({
   label,
@@ -478,8 +478,8 @@ export default function ContributionSkyline({
   }
 
   const [theme, setTheme] = React.useState<{ dark: boolean; swatches: string[]; accent: string }>(() => {
-    const p = resolvePalette(palette, false)
-    return { dark: false, swatches: ["#ebedf0", ...p], accent: p[3] }
+    const p = resolvePalette(palette, true)
+    return { dark: true, swatches: ["#18181f", ...p], accent: p[3] }
   })
   const [width, setWidth] = React.useState(0)
   const [active, setActive] = React.useState(-1)
@@ -640,8 +640,9 @@ export default function ContributionSkyline({
     const retheme = () => {
       const style = getComputedStyle(root)
       fg = toRGB(style.color, FG_FALLBACK) ?? FG_FALLBACK
-      bg = toRGB(style.backgroundColor, null) ?? (luminance(fg) > 0.5 ? [10, 10, 10] : BG_FALLBACK)
-      isDark = luminance(bg) < 0.45
+      const bodyBg = typeof document !== "undefined" ? getComputedStyle(document.body).backgroundColor : null
+      bg = toRGB(style.backgroundColor, null) ?? toRGB(bodyBg ?? "", null) ?? BG_FALLBACK
+      isDark = luminance(bg) < 0.5 || luminance(fg) > 0.5
       font = "400 10px " + (style.fontFamily || "sans-serif")
 
       const pal = resolvePalette(state.current.palette, isDark)
@@ -1146,6 +1147,9 @@ export default function ContributionSkyline({
       }
     }
 
+    // Trigger enter immediately so 3D skyline renders without waiting
+    enter()
+
     let observer: IntersectionObserver | null = null
     if ("IntersectionObserver" in window) {
       observer = new IntersectionObserver(
@@ -1155,11 +1159,9 @@ export default function ContributionSkyline({
             observer?.disconnect()
           }
         },
-        { threshold: 0.35 }
+        { threshold: 0.1 }
       )
       observer.observe(stage)
-    } else {
-      enter()
     }
 
     const ro = new ResizeObserver(() => {
@@ -1324,13 +1326,13 @@ export default function ContributionSkyline({
 
       <div
         className="relative rounded-lg border"
-        style={{ borderColor: "var(--color-border, #e5e5e5)" }}
+        style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}
       >
         <div className="relative px-3 pt-3 sm:px-4 sm:pt-4">
           <div
             ref={stageRef}
             className="relative w-full overflow-hidden rounded-md outline-offset-4 has-[:focus-visible]:outline-2"
-            style={{ height: 150, outlineColor: "var(--color-foreground, #171717)" }}
+            style={{ height: 240, minHeight: 180, outlineColor: "rgba(255, 255, 255, 0.2)" }}
           >
             <canvas
               ref={canvasRef}
