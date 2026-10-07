@@ -149,21 +149,18 @@ export default function Home() {
           </p>
         </div>
 
-        {/* 3D Interactive Works Wheel Showcase */}
-        <div className="relative w-full max-w-5xl mx-auto px-4 md:px-6">
-          <div className="relative w-full h-[480px] md:h-[580px] rounded-2xl border border-white/10 bg-[#0c0c10] overflow-hidden shadow-2xl">
-            <WorksWheel
-              items={projects.map((p) => ({
-                title: p.title,
-                image: p.image_url,
-                href: p.project_url,
-              }))}
-              label="Works '26"
-              action="Launch"
-              className="h-full w-full !bg-transparent !text-[#EDE8DF]"
-            />
-          </div>
-        </div>
+        {/* 3D Interactive Works Wheel Showcase (Sticky Scroll, No BG, No Border) */}
+        <WorksWheel
+          items={projects.map((p) => ({
+            title: p.title,
+            image: p.image_url,
+            href: p.project_url,
+          }))}
+          label="Works '26"
+          action="Launch"
+          sticky={true}
+          className="w-full"
+        />
 
         {/* Dynamic Project Grid (Architectural Monograph Canvas) */}
         <div className="max-w-5xl mx-auto px-6 pt-4">

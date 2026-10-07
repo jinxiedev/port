@@ -1,18 +1,6 @@
 "use client";
 
-// A portfolio index built as a wheel you turn.
-//
-// At rest the work sits in a ring around a title, each card tangent to the
-// circle. The first notch of scroll blows the ring open into a vertical drum:
-// the card at the front lies flat and full size, the ones above and below
-// rotate away into hard perspective and run off the top and bottom of the
-// frame. Keep turning and the drum carries the next piece round to the front.
-//
-// The whole thing is one number - `turn` - read by a single rAF pass that writes
-// transforms straight to the DOM. 0 is the ring, 1 is the drum with item 0 at
-// the front, and every whole number after that is one more item turned past.
 import * as React from "react";
-
 import { cn } from "@/lib/utils";
 
 export interface WorksWheelItem {
@@ -25,47 +13,33 @@ export interface WorksWheelItem {
 }
 
 export interface WorksWheelProps extends Omit<
-  React.ComponentPropsWithoutRef<"section">,
+  React.ComponentPropsWithoutRef<"div">,
   "children"
 > {
   items: WorksWheelItem[];
-  /** Sits in the middle of the ring. @default undefined */
+  /** Sits in the middle of the ring. @default "Works '26" */
   label?: string;
-  /** Label on the card's hover affordance. Omit to drop it. @default undefined */
+  /** Label on the card's hover affordance. @default "Launch" */
   action?: string;
+  /** Enables sticky window scrolling to drive the wheel. @default true */
+  sticky?: boolean;
 }
 
-/* Geometry. The card is measured against the stage; everything else is measured
-   against the card, so a narrow stage - where the card is capped by width, not
-   height - scales the whole wheel down with it instead of leaving a small card
-   swinging on a huge drum. The three that matter are tuned together: STEP
-   against DRUM sets how hard the neighbours rotate away, and DRUM against LENS
-   decides whether they land inside the frame or run off it. */
-const CARD_H = 0.38; // front card height, of the stage
-const CARD_MAX_W = 0.34; // ... but never wider than this much of the stage
+/* Geometry tuned for dramatic, immersive presence */
+const CARD_H = 0.48; // front card height, of the stage
+const CARD_MAX_W = 0.46; // ... but never wider than this much of the stage
 const CARD_RATIO = 1.45; // card width / height
 const STEP = 40; // degrees between cards on the drum
-const DRUM = 2.22; // drum radius, in card heights - and everything below likewise
-const LENS = 2.7; // perspective distance
-const RING_R = 1.14; // ring radius
-/* The drum alone hangs the work on a plumb line. It isn't one: the strip curves
-   away round an arc whose centre sits off to the LEFT, so the piece at the front
-   is at the arc's near point - dead centre - and its neighbours have already
-   swung back left as well as up and down. BOW is that arc's radius; nothing else
-   makes the difference between a stack of cards and a wheel seen side on. */
-const BOW = 1.82;
-const TITLE = 0.124; // ring label and front-card title
-const INDEX = 0.04; // the index down the right-hand side
-/** Items either side of the front still worth drawing. Past this a card is
-    edge-on, and further round it would stack up on the vanishing point. */
-const CULL = 1.6;
+const DRUM = 2.22; // drum radius, in card heights
+const LENS = 2.75; // perspective distance
+const RING_R = 1.18; // ring radius
+const BOW = 1.72; // arc radius
+const TITLE = 0.124; // ring label size
+const CULL = 1.8;
 
-/** How much of a wheel-notch or a dragged pixel counts as one item. */
 const WHEEL_UNITS = 900;
 const DRAG_UNITS = 420;
-/** Quiet time after the last wheel event before the wheel settles on an item. */
 const SETTLE = 140;
-/** Fraction of the remaining distance closed each frame. 1 = no smoothing. */
 const EASE = 0.12;
 
 const clamp = (v: number, lo: number, hi: number) =>
@@ -76,15 +50,9 @@ type Stage = { w: number; h: number };
 
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
-/** How far left the arc has carried something that has turned `drumDeg` off the
-    front. Zero at the front, so the piece being read stays centred. */
 const bowAt = (drumDeg: number, bow: number) =>
   -bow * (1 - Math.cos(rad(drumDeg)));
 
-/** Both states in one chain: the ring terms fall away as `m` reaches the drum,
-    and the drum terms are still zero while the ring is up. The bow is applied
-    first, in the wheel's own plane, so it slides the card sideways rather than
-    turning with it - and perspective still shrinks it with distance. */
 function place(
   ringDeg: number,
   drumDeg: number,
@@ -103,18 +71,18 @@ function place(
 export function WorksWheel({
   items,
   label = "Works '26",
-  action = "View",
+  action = "Launch",
+  sticky = true,
   className,
   ...props
 }: WorksWheelProps) {
+  const trackRef = React.useRef<HTMLDivElement>(null);
   const stageRef = React.useRef<HTMLDivElement>(null);
   const wheelRef = React.useRef<HTMLDivElement>(null);
   const cardRefs = React.useRef<(HTMLElement | null)[]>([]);
   const labelRef = React.useRef<HTMLDivElement>(null);
   const titleRef = React.useRef<HTMLDivElement>(null);
 
-  // The wheel's position, and where it is heading. Only `active` is state -
-  // everything else is written to the DOM, so turning the wheel is not a render.
   const turn = React.useRef(0);
   const target = React.useRef(0);
   const [active, setActive] = React.useState(0);
@@ -123,9 +91,6 @@ export function WorksWheel({
   const count = items.length;
   const last = Math.max(count - 1, 0);
 
-  // Read after mount, not during render: the server has no matchMedia, and
-  // branching on it inline is a hydration mismatch. Reduced motion drops the
-  // easing, so the wheel lands where it is put instead of gliding there.
   const [reduced, setReduced] = React.useState(false);
   React.useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -147,12 +112,13 @@ export function WorksWheel({
 
   const metrics = React.useMemo(() => {
     const { w, h } = stage;
-    const cardW = Math.min(h * CARD_H * CARD_RATIO, w * CARD_MAX_W);
+    const isMobile = w > 0 && w < 640;
+    const cardMaxWFactor = isMobile ? 0.76 : CARD_MAX_W;
+    const cardHFactor = isMobile ? 0.40 : CARD_H;
+    const cardW = Math.min(h * cardHFactor * CARD_RATIO, w * cardMaxWFactor);
     const cardH = cardW / CARD_RATIO;
     const drumR = cardH * DRUM;
-    const ringR = cardH * RING_R;
-    // Shrink the ring's cards until the circle reads as a closed loop rather
-    // than beads on a wire, however many pieces the wheel is given.
+    const ringR = cardH * (isMobile ? 1.05 : RING_R);
     const ringScale = count
       ? clamp((((2 * Math.PI * ringR) / count) * 0.82) / (cardW || 1), 0.16, 1)
       : 1;
@@ -162,10 +128,9 @@ export function WorksWheel({
       ringR,
       ringScale,
       drumR,
-      bow: cardH * BOW,
+      bow: cardH * (isMobile ? 1.0 : BOW),
       depth: cardH * LENS,
-      title: cardH * TITLE,
-      index: cardH * INDEX,
+      title: Math.max(28, cardH * TITLE),
     };
   }, [stage, count]);
 
@@ -185,9 +150,6 @@ export function WorksWheel({
       const m = clamp(t, 0, 1);
       const pos = Math.max(0, t - 1);
 
-      // The drum is pulled back so its front face lands on the picture plane.
-      // That set-back has to arrive with the drum, or the ring would sit at the
-      // far side of the perspective and render at half its size.
       if (wheelRef.current) {
         wheelRef.current.style.transform = `translateZ(${-m * drumR}px)`;
       }
@@ -205,9 +167,6 @@ export function WorksWheel({
             bow,
             m,
           );
-          // Culled by distance, not by angle: at a full turn the far side comes
-          // back round to face us, and everything past the neighbours lands on
-          // the vanishing point in a heap.
           card.style.opacity = m > 0.5 && Math.abs(d) > CULL ? "0" : "1";
           card.style.zIndex = String(Math.round(100 - Math.abs(d) * 2));
         }
@@ -215,8 +174,8 @@ export function WorksWheel({
         if (face) face.style.transform = `scale(${lerp(ringScale, 1, m)})`;
       }
 
-      if (labelRef.current) labelRef.current.style.opacity = String(1 - m);
-      if (titleRef.current) titleRef.current.style.opacity = String(m);
+      if (labelRef.current) labelRef.current.style.opacity = String(Math.max(0, 1 - m * 2));
+      if (titleRef.current) titleRef.current.style.opacity = String(clamp((m - 0.15) * 1.5, 0, 1));
       const near = clamp(Math.round(pos), 0, last);
       setActive((prev) => (prev === near ? prev : near));
     };
@@ -232,20 +191,43 @@ export function WorksWheel({
     [last],
   );
 
-  // Native listener, because the wheel has to be cancellable - and it only
-  // cancels while it still has somewhere to go, so the page scrolls on at
-  // either end instead of trapping the reader.
+  // Sticky Window Scroll Listener
   React.useEffect(() => {
+    if (!sticky) return;
+    const track = trackRef.current;
+    if (!track) return;
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        if (!track) return;
+        const rect = track.getBoundingClientRect();
+        const maxScroll = track.offsetHeight - window.innerHeight;
+        if (maxScroll <= 0) return;
+        const currentScroll = -rect.top;
+        const progress = clamp(currentScroll / maxScroll, 0, 1);
+        target.current = progress * (last + 1);
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [sticky, last]);
+
+  // Non-sticky wheel listener (only active when sticky is false)
+  const settling = React.useRef(0);
+  React.useEffect(() => {
+    if (sticky) return;
     const el = stageRef.current;
     if (!el) return;
     const onWheel = (event: WheelEvent) => {
       const next = target.current + event.deltaY / WHEEL_UNITS;
       if (next > 0 && next < last + 1) event.preventDefault();
       to(next);
-      // A wheel gesture arrives as a burst of events with no end of its own, so
-      // the rest position is whatever notch it happened to stop on. Left there
-      // the drum sits between two cards - nothing at the front, and the pair
-      // either side of the gap both turned half away. Settle onto an item.
       window.clearTimeout(settling.current);
       settling.current = window.setTimeout(
         () => to(Math.round(target.current)),
@@ -257,146 +239,221 @@ export function WorksWheel({
       el.removeEventListener("wheel", onWheel);
       window.clearTimeout(settling.current);
     };
-  }, [to, last]);
+  }, [sticky, to, last]);
+
+  const scrollToItem = (idx: number) => {
+    if (sticky && trackRef.current) {
+      const track = trackRef.current;
+      const maxScroll = track.offsetHeight - window.innerHeight;
+      const progress = (idx + 1) / (last + 1);
+      const targetY = window.scrollY + track.getBoundingClientRect().top + progress * maxScroll;
+      window.scrollTo({ top: targetY, behavior: "smooth" });
+    } else {
+      to(idx + 1);
+    }
+  };
 
   const drag = React.useRef<number | null>(null);
-  const settling = React.useRef(0);
 
-  return (
-    <section
+  const innerContent = (
+    <div
+      ref={stageRef}
+      tabIndex={0}
+      role="listbox"
       aria-label={label}
-      className={cn(
-        "bg-background text-foreground relative h-full min-h-[24rem] w-full overflow-hidden select-none",
-        className,
-      )}
-      {...props}
+      aria-activedescendant={`works-wheel-${active}`}
+      className="focus-visible:outline-[#D97757] absolute inset-0 cursor-grab touch-pan-x outline-none focus-visible:outline-2 focus-visible:-outline-offset-4 active:cursor-grabbing select-none"
+      style={{ perspective: `${metrics.depth}px` }}
+      onPointerDown={(event) => {
+        drag.current = event.clientY;
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        if (drag.current === null) return;
+        to(target.current + (drag.current - event.clientY) / DRAG_UNITS);
+        drag.current = event.clientY;
+      }}
+      onPointerUp={() => {
+        drag.current = null;
+        if (target.current > 1) to(Math.round(target.current));
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowDown") to(Math.round(target.current) + 1);
+        else if (event.key === "ArrowUp") to(Math.round(target.current) - 1);
+        else return;
+        event.preventDefault();
+      }}
     >
       <div
-        ref={stageRef}
-        tabIndex={0}
-        role="listbox"
-        aria-label={label}
-        aria-activedescendant={`works-wheel-${active}`}
-        className="focus-visible:outline-foreground absolute inset-0 cursor-grab touch-pan-x outline-none focus-visible:outline-2 focus-visible:-outline-offset-4 active:cursor-grabbing"
-        style={{ perspective: `${metrics.depth}px` }}
-        onPointerDown={(event) => {
-          drag.current = event.clientY;
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          if (drag.current === null) return;
-          to(target.current + (drag.current - event.clientY) / DRAG_UNITS);
-          drag.current = event.clientY;
-        }}
-        onPointerUp={() => {
-          // Land on an item rather than between two.
-          drag.current = null;
-          if (target.current > 1) to(Math.round(target.current));
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown") to(Math.round(target.current) + 1);
-          else if (event.key === "ArrowUp") to(Math.round(target.current) - 1);
-          else return;
-          event.preventDefault();
-        }}
+        ref={wheelRef}
+        className="absolute top-1/2 left-1/2 [transform-style:preserve-3d]"
       >
-        <div
-          ref={wheelRef}
-          className="absolute top-1/2 left-1/2 [transform-style:preserve-3d]"
-        >
-          {items.map((item, i) => {
-            const Tag = (item.href ? "a" : "div") as "a";
-            return (
-              <React.Fragment key={item.title}>
-                <Tag
-                  id={`works-wheel-${i}`}
-                  role="option"
-                  aria-selected={i === active}
-                  href={item.href}
-                  target={item.href?.startsWith("http") ? "_blank" : undefined}
-                  rel={item.href?.startsWith("http") ? "noopener noreferrer" : undefined}
-                  ref={(node: HTMLElement | null) => {
-                    cardRefs.current[i] = node;
-                  }}
-                  className="group absolute [backface-visibility:hidden]"
-                  style={{
-                    width: metrics.cardW,
-                    height: metrics.cardH,
-                    marginLeft: -metrics.cardW / 2,
-                    marginTop: -metrics.cardH / 2,
-                  }}
-                >
-                  <span className="bg-[#121218] border border-white/10 shadow-2xl relative block size-full overflow-hidden rounded-xl">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      draggable={false}
-                      className="size-full object-cover"
-                    />
-                    {action && item.href ? (
-                      <span className="bg-black/80 text-[#EDE8DF] border border-white/20 pointer-events-none absolute right-3 bottom-3 flex translate-y-1 items-center gap-1 rounded-full px-2.5 py-1 text-[0.7rem] opacity-0 backdrop-blur-md transition group-hover:translate-y-0 group-hover:opacity-100 font-mono">
-                        <svg
-                          viewBox="0 0 12 12"
-                          className="size-2.5 text-[#D97757]"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M3 9 9 3M4 3h5v5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        {action}
-                      </span>
-                    ) : null}
-                  </span>
-                </Tag>
-              </React.Fragment>
-            );
-          })}
+        {items.map((item, i) => {
+          const Tag = (item.href ? "a" : "div") as "a";
+          return (
+            <React.Fragment key={item.title}>
+              <Tag
+                id={`works-wheel-${i}`}
+                role="option"
+                aria-selected={i === active}
+                href={item.href}
+                target={item.href?.startsWith("http") ? "_blank" : undefined}
+                rel={item.href?.startsWith("http") ? "noopener noreferrer" : undefined}
+                ref={(node: HTMLElement | null) => {
+                  cardRefs.current[i] = node;
+                }}
+                className="group absolute [backface-visibility:hidden]"
+                style={{
+                  width: metrics.cardW,
+                  height: metrics.cardH,
+                  marginLeft: -metrics.cardW / 2,
+                  marginTop: -metrics.cardH / 2,
+                }}
+              >
+                <span className="bg-[#0e0e14]/90 border border-white/10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] relative block size-full overflow-hidden rounded-2xl transition-transform duration-300 group-hover:scale-[1.02]">
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    draggable={false}
+                    className="size-full object-cover"
+                  />
+                  {action && item.href ? (
+                    <span className="bg-black/85 text-[#EDE8DF] border border-white/20 pointer-events-none absolute right-4 bottom-4 flex translate-y-1 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs opacity-0 backdrop-blur-md transition group-hover:translate-y-0 group-hover:opacity-100 font-mono">
+                      <svg
+                        viewBox="0 0 12 12"
+                        className="size-3 text-[#D97757]"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M3 9 9 3M4 3h5v5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      {action}
+                    </span>
+                  ) : null}
+                </span>
+              </Tag>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const overlayElements = (
+    <>
+      {/* Center Ring label when at rest */}
+      <div
+        ref={labelRef}
+        className="pointer-events-none absolute inset-0 grid place-items-center tracking-tight font-serif text-[#EDE8DF] select-none z-10"
+        style={{ fontSize: metrics.title }}
+      >
+        <div className="text-center space-y-2">
+          <span className="block text-xs font-mono uppercase tracking-[0.3em] text-[#D97757]">
+            Interactive 3D Reel
+          </span>
+          <span className="block text-3xl md:text-5xl font-serif">
+            {label}
+          </span>
+          <span className="block text-[11px] font-mono text-white/40 tracking-wider">
+            Scroll down to unfold
+          </span>
         </div>
       </div>
 
-      {/* Ring title and front-card title trade places across the transition.
-          Type is sized off the measured stage, not vh, so the wheel keeps its
-          proportions inside a card as well as at full bleed. */}
-      <div
-        ref={labelRef}
-        className="pointer-events-none absolute inset-0 grid place-items-center tracking-tight font-serif text-[#EDE8DF]/80"
-        style={{ fontSize: metrics.title }}
-      >
-        {label}
-      </div>
+      {/* Front-card project title - positioned in top-left quadrant so it NEVER overlaps center 3D cards */}
       <div
         ref={titleRef}
-        className="pointer-events-none absolute top-1/2 left-[5%] md:left-[8%] -translate-y-1/2 tracking-tight opacity-0 font-serif max-w-[45%] text-[#EDE8DF] drop-shadow-md z-10"
-        style={{ fontSize: metrics.title }}
+        className="pointer-events-none absolute top-6 left-6 md:top-10 md:left-12 lg:top-14 lg:left-16 z-20 max-w-[280px] sm:max-w-xs md:max-w-md transition-opacity duration-200"
       >
-        {items[active]?.title}
+        <div className="space-y-1.5 md:space-y-2">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] font-mono font-semibold tracking-widest text-[#D97757]">
+              {String(active + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
+            </span>
+            <span className="w-1 h-1 rounded-full bg-white/30" />
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">
+              Selected Work
+            </span>
+          </div>
+          <h3 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white leading-[1.1] tracking-tight line-clamp-2">
+            {items[active]?.title}
+          </h3>
+        </div>
       </div>
 
+      {/* Index on the top-right */}
       <ol
-        className="text-white/40 absolute top-[7.5%] right-[2.5%] text-right leading-[1.8] hidden sm:block z-10"
-        style={{ fontSize: Math.max(11, metrics.index) }}
+        className="text-white/40 absolute top-6 right-6 md:top-10 md:right-12 lg:top-14 lg:right-16 text-right leading-[1.8] hidden sm:block z-20"
       >
         {items.map((item, i) => (
           <li key={item.title}>
             <button
               type="button"
-              onClick={() => to(i + 1)}
+              onClick={() => scrollToItem(i)}
               className={cn(
-                "focus-visible:outline-[#D97757] cursor-pointer transition-colors outline-none focus-visible:outline-1 font-mono text-[11px] uppercase tracking-wider hover:text-white",
+                "focus-visible:outline-[#D97757] cursor-pointer transition-colors outline-none focus-visible:outline-1 font-mono text-[11px] uppercase tracking-wider hover:text-white block ml-auto",
                 i === active && "text-[#D97757] font-semibold",
               )}
             >
+              <span className="text-white/20 mr-2 text-[10px]">{String(i + 1).padStart(2, "0")}</span>
               {item.title}
             </button>
           </li>
         ))}
       </ol>
+
+      {/* Bottom subtle progress & scroll prompt */}
+      <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20">
+        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.25em] text-white/40">
+          <span>{sticky ? "Scroll to Explore" : "Drag or Click to Explore"}</span>
+          <span className="animate-bounce">↓</span>
+        </div>
+        <div className="w-32 h-[2px] bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[#D97757] transition-all duration-150"
+            style={{ width: `${clamp(((active + 1) / count) * 100, 15, 100)}%` }}
+          />
+        </div>
+      </div>
+    </>
+  );
+
+  if (sticky) {
+    return (
+      <div
+        ref={trackRef}
+        className={cn("relative w-full bg-transparent", className)}
+        style={{ height: `${Math.max(250, (count + 1) * 70)}vh` }}
+        {...props}
+      >
+        <section
+          aria-label={label}
+          className="sticky top-0 h-screen w-full overflow-hidden select-none bg-transparent"
+        >
+          {innerContent}
+          {overlayElements}
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <section
+      aria-label={label}
+      className={cn(
+        "relative h-full min-h-[36rem] w-full overflow-hidden select-none bg-transparent",
+        className,
+      )}
+      {...props}
+    >
+      {innerContent}
+      {overlayElements}
     </section>
   );
 }
