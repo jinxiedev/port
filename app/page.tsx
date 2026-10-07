@@ -16,6 +16,18 @@ const PrismHero = dynamic(() => import("@/components/ui/prism-hero"), {
   ),
 })
 
+const ContributionSkyline = dynamic(
+  () => import("@/components/ui/contribution-skyline"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[280px] w-full flex items-center justify-center text-xs font-mono text-white/40">
+        Loading Skyline Visualization...
+      </div>
+    ),
+  }
+)
+
 export default function Home() {
   const [preloaderActive, setPreloaderActive] = React.useState(true)
   const [projects, setProjects] = React.useState<Project[]>(FALLBACK_PROJECTS)
@@ -211,11 +223,34 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. Technical Principles (Understated & Factual) */}
+      {/* 4. Activity & Contribution Skyline */}
+      <section id="activity" className="relative z-30 max-w-5xl mx-auto px-6 py-24 border-t border-white/10 space-y-8">
+        <div className="space-y-3">
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
+            03 / Activity &amp; Contributions
+          </p>
+          <h2 className="text-3xl md:text-4xl font-serif">
+            Engineering Skyline
+          </h2>
+          <p className="text-sm md:text-base text-white/60 max-w-2xl font-light leading-relaxed">
+            Annual telemetry and continuous shipping metrics rendered as an interactive 3D isometric skyline. Toggle between 2D heatmap and 3D architectural projection.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-2 md:p-4 overflow-hidden shadow-2xl">
+          <ContributionSkyline
+            defaultView="3d"
+            palette="ember"
+            className="!border-white/10 !bg-[#0c0c10] !text-[#EDE8DF]"
+          />
+        </div>
+      </section>
+
+      {/* 5. Technical Principles (Understated & Factual) */}
       <section className="relative z-30 max-w-5xl mx-auto px-6 py-24 border-t border-white/10 space-y-12">
         <div className="space-y-3">
           <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
-            03 / Technical Principles
+            04 / Technical Principles
           </p>
           <h2 className="text-3xl md:text-4xl font-serif">
             How I Build Software
