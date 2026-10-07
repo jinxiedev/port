@@ -3,6 +3,7 @@ import * as React from "react"
 import dynamic from "next/dynamic"
 import { ArrowUpRight, Database, Layers, Code2 } from "lucide-react"
 import { WorksWheel } from "@/components/ui/works-wheel"
+import { InkOrbitFeatures } from "@/components/ui/ink-orbit-features"
 import { CinematicFooter } from "@/components/ui/motion-footer"
 import { ImmersivePreloader } from "@/components/ui/immersive-preloader"
 import { AdminGate } from "@/components/admin/admin-gate"
@@ -162,74 +163,14 @@ export default function Home() {
           className="w-full"
         />
 
-        {/* Dynamic Project Grid (Architectural Monograph Canvas) */}
-        <div className="max-w-5xl mx-auto px-6 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 border border-white/[0.08] divide-y md:divide-y-0 md:divide-x divide-white/[0.08] rounded-2xl overflow-hidden bg-[#0a0a0e]">
-            {projects.slice(0, 6).map((project, idx) => {
-              const indexStr = String(idx + 1).padStart(2, "0")
-              const isFirstRow = idx < 2
-              return (
-                <div
-                  key={project.id}
-                  className={`group p-8 md:p-10 flex flex-col justify-between space-y-8 transition-colors duration-500 hover:bg-white/[0.015] relative ${
-                    isFirstRow ? "border-b border-white/[0.08]" : ""
-                  }`}
-                >
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between text-xs font-mono select-none">
-                      <span className="font-serif text-3xl md:text-4xl text-white/20 group-hover:text-[#D97757] transition-colors duration-500">
-                        {indexStr}
-                      </span>
-                      <span className="text-[10px] tracking-[0.25em] text-[#D97757] uppercase">
-                        // {project.domain || "FULLSTACK APPLICATION"}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="font-serif text-2xl md:text-3xl text-[#EDE8DF] group-hover:text-white transition-colors leading-tight">
-                        {project.title}
-                      </h3>
-                      <p className="text-sm text-white/60 font-light leading-relaxed">
-                        {project.description}
-                      </p>
-                    </div>
-
-                    {/* Hero Metric Callout */}
-                    <div className="py-4 border-y border-white/[0.06] flex items-baseline justify-between">
-                      <div>
-                        <div className="font-mono text-2xl md:text-3xl font-light text-white tracking-tight">
-                          {project.metric || "ACTIVE"}
-                        </div>
-                        <span className="block text-[10px] font-mono uppercase tracking-widest text-white/40 mt-1">
-                          {project.metricLabel || "Production Deployment"}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400/90 px-2 py-0.5 rounded border border-emerald-400/20 bg-emerald-400/5">
-                        Production
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs font-mono pt-2 border-t border-white/[0.04]">
-                    <span className="text-white/40 tracking-wider text-[11px] truncate max-w-[200px]">
-                      {project.tags.slice(0, 4).join(" • ")}
-                    </span>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <a
-                        href={project.project_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] tracking-widest uppercase text-[#D97757] hover:text-white transition-colors"
-                      >
-                        <span>Live System</span>
-                        <ArrowUpRight className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        {/* Architecture & Engineering Telemetry Bento */}
+        <div className="max-w-5xl mx-auto px-4 md:px-6 pt-6 pb-4">
+          <InkOrbitFeatures
+            theme="dark"
+            brand="JINSHI CORE"
+            tag="SYSTEM ARCHITECTURE"
+            title="Distributed Systems *\nTelemetry & Architecture*"
+          />
         </div>
       </section>
 
