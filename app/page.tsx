@@ -1,9 +1,10 @@
 "use client"
 import * as React from "react"
 import dynamic from "next/dynamic"
-import { ArrowUpRight, Database, Layers, Code2 } from "lucide-react"
+import { ArrowUpRight } from "lucide-react"
 import { WorksWheel } from "@/components/ui/works-wheel"
 import { ProjectMonograph } from "@/components/ui/project-monograph"
+import { InkOrbitFeatures } from "@/components/ui/ink-orbit-features"
 import { CinematicFooter } from "@/components/ui/motion-footer"
 import { ImmersivePreloader } from "@/components/ui/immersive-preloader"
 import { AdminGate } from "@/components/admin/admin-gate"
@@ -198,66 +199,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 5. Technical Principles (Understated & Factual) */}
-      <section className="relative z-30 max-w-5xl mx-auto px-6 py-24 border-t border-white/10 space-y-12">
-        <div className="space-y-3">
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
-            04 / Technical Principles
-          </p>
-          <h2 className="text-3xl md:text-4xl font-serif">
-            How I Build Software
-          </h2>
-          <p className="text-sm md:text-base text-white/60 max-w-2xl font-light leading-relaxed">
-            Three core pillars guiding every system: database reliability at the core, 60fps responsiveness on the client, and clean codebases for long-term maintainability.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
-            <div className="flex items-center gap-2 text-xs font-mono text-[#D97757]">
-              <Database className="w-4 h-4" />
-              <span>BACKEND &amp; DATA</span>
-            </div>
-            <h4 className="text-lg font-medium text-white">Reliable &amp; Predictable</h4>
-            <p className="text-sm text-white/60 font-light leading-relaxed">
-              Normalized relational schemas, ACID-compliant transactions, consistent REST APIs, and measured query profiling.
-            </p>
-            <div className="pt-2 text-xs font-mono text-white/40 space-y-1">
-              <div>&bull; PostgreSQL, Go, Redis, Docker</div>
-              <div>&bull; Query profiling &amp; cache strategy</div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
-            <div className="flex items-center gap-2 text-xs font-mono text-[#D97757]">
-              <Layers className="w-4 h-4" />
-              <span>FRONTEND &amp; INTERFACE</span>
-            </div>
-            <h4 className="text-lg font-medium text-white">Fast, Accessible &amp; Clean</h4>
-            <p className="text-sm text-white/60 font-light leading-relaxed">
-              Optimal Core Web Vitals (LCP &lt; 1.2s), keyboard-first navigation, zero layout shift, and smooth 60fps rendering across devices.
-            </p>
-            <div className="pt-2 text-xs font-mono text-white/40 space-y-1">
-              <div>&bull; Next.js, React, TypeScript, Tailwind</div>
-              <div>&bull; 60fps animations &amp; WebGL optimization</div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
-            <div className="flex items-center gap-2 text-xs font-mono text-[#D97757]">
-              <Code2 className="w-4 h-4" />
-              <span>CODEBASE &amp; TEAM</span>
-            </div>
-            <h4 className="text-lg font-medium text-white">Maintainable &amp; Pragmatic</h4>
-            <p className="text-sm text-white/60 font-light leading-relaxed">
-              Modular architecture, clean git history, automated testing for critical paths, and honest, transparent communication.
-            </p>
-            <div className="pt-2 text-xs font-mono text-white/40 space-y-1">
-              <div>&bull; Clean git commits &amp; code reviews</div>
-              <div>&bull; Clear documentation for humans</div>
-            </div>
-          </div>
-        </div>
+      {/* 4. Architecture & Engineering Pipelines (Ink Orbit Bento) */}
+      <section id="architecture" className="relative z-30 max-w-5xl mx-auto px-4 md:px-6 py-20 border-t border-white/10">
+        <InkOrbitFeatures
+          theme="dark"
+          brand="JINSHI CORE"
+          tag="04 / TECHNICAL ARCHITECTURE &amp; PIPELINES"
+          title="Distributed Systems *\nTelemetry &amp; Architecture*"
+        />
       </section>
 
       {/* 5. Cinematic Motion Footer (Curtain Reveal + Magnetic Pills) */}
