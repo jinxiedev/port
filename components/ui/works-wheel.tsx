@@ -209,14 +209,26 @@ export function WorksWheel({
         if (maxScroll <= 0) return;
         const currentScroll = -rect.top;
         const progress = clamp(currentScroll / maxScroll, 0, 1);
-        target.current = progress * (last + 1);
+
+        // Smooth mapping across the scroll range:
+        // 0..0.05: Ring stays at rest or starts opening
+        // 0.05..0.95: Smoothly rotates through all items (1..count)
+        // >=0.95: Last item rests at the front, then unpins cleanly
+        let turnValue = 0;
+        if (progress <= 0.05) {
+          turnValue = (progress / 0.05) * 0.8;
+        } else {
+          const pNorm = (progress - 0.05) / 0.95;
+          turnValue = 1 + pNorm * (count - 1);
+        }
+        target.current = clamp(turnValue, 0, count);
       });
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, [sticky, last]);
+  }, [sticky, count]);
 
   // Non-sticky wheel listener (only active when sticky is false)
   const settling = React.useRef(0);
@@ -245,8 +257,9 @@ export function WorksWheel({
     if (sticky && trackRef.current) {
       const track = trackRef.current;
       const maxScroll = track.offsetHeight - window.innerHeight;
-      const progress = (idx + 1) / (last + 1);
-      const targetY = window.scrollY + track.getBoundingClientRect().top + progress * maxScroll;
+      const pNorm = count > 1 ? idx / (count - 1) : 0;
+      const itemProgress = 0.06 + pNorm * 0.88;
+      const targetY = window.scrollY + track.getBoundingClientRect().top + itemProgress * maxScroll;
       window.scrollTo({ top: targetY, behavior: "smooth" });
     } else {
       to(idx + 1);
@@ -262,22 +275,28 @@ export function WorksWheel({
       role="listbox"
       aria-label={label}
       aria-activedescendant={`works-wheel-${active}`}
-      className="focus-visible:outline-[#D97757] absolute inset-0 cursor-grab touch-pan-x outline-none focus-visible:outline-2 focus-visible:-outline-offset-4 active:cursor-grabbing select-none"
+      className={cn(
+        "focus-visible:outline-[#D97757] absolute inset-0 outline-none select-none touch-pan-y",
+        !sticky && "cursor-grab active:cursor-grabbing"
+      )}
       style={{ perspective: `${metrics.depth}px` }}
       onPointerDown={(event) => {
+        if (sticky) return;
         drag.current = event.clientY;
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
-        if (drag.current === null) return;
+        if (sticky || drag.current === null) return;
         to(target.current + (drag.current - event.clientY) / DRAG_UNITS);
         drag.current = event.clientY;
       }}
       onPointerUp={() => {
+        if (sticky) return;
         drag.current = null;
         if (target.current > 1) to(Math.round(target.current));
       }}
       onKeyDown={(event) => {
+        if (sticky) return;
         if (event.key === "ArrowDown") to(Math.round(target.current) + 1);
         else if (event.key === "ArrowUp") to(Math.round(target.current) - 1);
         else return;
@@ -429,7 +448,7 @@ export function WorksWheel({
       <div
         ref={trackRef}
         className={cn("relative w-full bg-transparent", className)}
-        style={{ height: `${Math.max(250, (count + 1) * 70)}vh` }}
+        style={{ height: `${Math.max(180, (count + 0.5) * 45)}vh` }}
         {...props}
       >
         <section
