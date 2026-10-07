@@ -1,9 +1,8 @@
 "use client"
-
 import * as React from "react"
 import dynamic from "next/dynamic"
-import { ArrowUpRight, Mail, Code2, Database, Layers } from "lucide-react"
-import DiagonalMarqueeCarousel from "@/components/ui/great-ui-diagonal-marquee-carousel"
+import { ArrowUpRight, Database, Layers, Code2 } from "lucide-react"
+import { WorksWheel } from "@/components/ui/works-wheel"
 import { CinematicFooter } from "@/components/ui/motion-footer"
 import { ImmersivePreloader } from "@/components/ui/immersive-preloader"
 import { AdminGate } from "@/components/admin/admin-gate"
@@ -150,9 +149,20 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Diagonal Marquee Carousel Showcase */}
-        <div className="relative w-full overflow-hidden">
-          <DiagonalMarqueeCarousel className="h-[480px] md:h-[600px]" />
+        {/* 3D Interactive Works Wheel Showcase */}
+        <div className="relative w-full max-w-5xl mx-auto px-4 md:px-6">
+          <div className="relative w-full h-[480px] md:h-[580px] rounded-2xl border border-white/10 bg-[#0c0c10] overflow-hidden shadow-2xl">
+            <WorksWheel
+              items={projects.map((p) => ({
+                title: p.title,
+                image: p.image_url,
+                href: p.project_url,
+              }))}
+              label="Works '26"
+              action="Launch"
+              className="h-full w-full !bg-transparent !text-[#EDE8DF]"
+            />
+          </div>
         </div>
 
         {/* Dynamic Project Grid (Architectural Monograph Canvas) */}
