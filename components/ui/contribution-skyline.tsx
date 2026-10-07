@@ -1233,7 +1233,8 @@ export default function ContributionSkyline({
   }
 
   const is3D = view === "3d"
-  const showSideStats = showStats && width >= 560
+  // Keep stats in the dedicated bottom grid to prevent canvas month labels (like "Apr") from overlapping floating cards
+  const showSideStats = false
   const statSize = Math.round(Math.max(30, Math.min(56, width * 0.058)))
 
   const statsCards = [
@@ -1243,7 +1244,7 @@ export default function ContributionSkyline({
     { label: "Current streak", value: nf.format(stats.current.days), unit: stats.current.days === 1 ? "day" : "days", sub: formatRange(stats.current.start, stats.current.end) },
   ]
 
-  const showBottomStats = showStats && !(is3D && showSideStats)
+  const showBottomStats = showStats
   const ease = "cubic-bezier(0.65, 0, 0.35, 1)"
   const legendLabels = ["No " + plural, "Light", "Moderate", "Heavy", "Heaviest"]
   const hints = ["Hover a day for details · arrow keys to explore", "Drag to orbit · double-click to reset"]
@@ -1402,7 +1403,7 @@ export default function ContributionSkyline({
         {showStats && (
           <div
             aria-hidden={!showBottomStats}
-            className="grid transition-[grid-template-rows,opacity] motion-reduce:transition-none"
+            className="grid transition-[grid-template-rows,opacity] motion-reduce:transition-none border-t border-white/5"
             style={{
               gridTemplateRows: showBottomStats ? "1fr" : "0fr",
               opacity: showBottomStats ? 1 : 0,

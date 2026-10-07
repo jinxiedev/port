@@ -229,15 +229,9 @@ export default function Home() {
       {/* 4. Activity & Contribution Skyline */}
       <section id="activity" className="relative z-30 max-w-5xl mx-auto px-6 py-24 border-t border-white/10 space-y-8">
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
-              03 / Telemetry &amp; Shipping Activity
-            </p>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-400/10 border border-emerald-400/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live GitHub API (@jinxiedev)
-            </span>
-          </div>
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
+            03 / Telemetry &amp; Shipping Activity
+          </p>
           <h2 className="text-3xl md:text-4xl font-serif">
             Engineering Skyline
           </h2>
