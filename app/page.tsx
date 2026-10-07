@@ -187,16 +187,14 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-2 md:p-4 overflow-hidden shadow-2xl">
-          <ContributionSkyline
-            data={contributions}
-            defaultView="3d"
-            palette="ember"
-            unit="patch"
-            unitPlural="patches"
-            className="!border-white/10 !bg-[#0c0c10] !text-[#EDE8DF]"
-          />
-        </div>
+        <ContributionSkyline
+          data={contributions}
+          defaultView="3d"
+          palette="ember"
+          unit="patch"
+          unitPlural="patches"
+          className="rounded-2xl border border-white/10 bg-[#0c0c10] shadow-2xl !text-[#EDE8DF]"
+        />
       </section>
 
       {/* 4. Architecture & Engineering Pipelines (Ink Orbit Bento) */}

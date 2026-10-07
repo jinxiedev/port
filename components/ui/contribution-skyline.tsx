@@ -1253,14 +1253,14 @@ export default function ContributionSkyline({
   return (
     <section
       ref={rootRef}
-      className={`relative w-full rounded-xl border p-4 font-sans sm:p-5 ${className}`}
+      className={`relative w-full rounded-2xl border border-white/10 bg-[#0c0c10] p-4 font-sans sm:p-6 shadow-2xl ${className}`}
       style={{
-        background: "var(--color-background, #ffffff)",
-        color: "var(--color-foreground, #171717)",
-        borderColor: "var(--color-border, #e5e5e5)",
+        background: "#0c0c10",
+        color: "#EDE8DF",
+        borderColor: "rgba(255, 255, 255, 0.1)",
       }}
     >
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h3 className="m-0 text-[15px] font-normal leading-snug">
           {title ?? (
             <>
@@ -1274,8 +1274,7 @@ export default function ContributionSkyline({
           <div
             role="group"
             aria-label="Chart view"
-            className="relative inline-flex rounded-md border p-0.5"
-            style={{ borderColor: "var(--color-border, #e5e5e5)" }}
+            className="relative inline-flex rounded-md border border-white/10 p-0.5"
           >
             <span
               aria-hidden="true"
@@ -1307,10 +1306,7 @@ export default function ContributionSkyline({
         )}
       </header>
 
-      <div
-        className="relative rounded-lg border"
-        style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}
-      >
+      <div className="relative">
         <div className="relative px-3 pt-3 sm:px-4 sm:pt-4">
           <div
             ref={stageRef}
