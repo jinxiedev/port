@@ -21,6 +21,7 @@ import ContributionSkyline from "@/components/ui/contribution-skyline"
 export default function Home() {
   const [preloaderActive, setPreloaderActive] = React.useState(true)
   const [projects, setProjects] = React.useState<Project[]>(FALLBACK_PROJECTS)
+  const [contributions, setContributions] = React.useState<{ date: string; count: number }[] | undefined>(undefined)
 
   // Dynamically fetch live projects from Firestore with instant fallback
   const refreshProjects = React.useCallback(() => {
@@ -41,6 +42,18 @@ export default function Home() {
     window.addEventListener("projects-updated", handleProjectsUpdated)
     return () => window.removeEventListener("projects-updated", handleProjectsUpdated)
   }, [refreshProjects])
+
+  // Fetch live GitHub contributions
+  React.useEffect(() => {
+    fetch("/api/contributions")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.data) && data.data.length > 0) {
+          setContributions(data.data)
+        }
+      })
+      .catch((err) => console.error("Error fetching GitHub contributions:", err))
+  }, [])
 
   return (
     <main className="min-h-screen bg-[#08080B] text-[#EDE8DF] selection:bg-[#D97757]/30 selection:text-[#EDE8DF]">
@@ -216,21 +229,33 @@ export default function Home() {
       {/* 4. Activity & Contribution Skyline */}
       <section id="activity" className="relative z-30 max-w-5xl mx-auto px-6 py-24 border-t border-white/10 space-y-8">
         <div className="space-y-3">
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
-            03 / Activity &amp; Contributions
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
+              03 / Telemetry &amp; Shipping Activity
+            </p>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-400/10 border border-emerald-400/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live GitHub API (@jinxiedev)
+            </span>
+          </div>
           <h2 className="text-3xl md:text-4xl font-serif">
             Engineering Skyline
           </h2>
           <p className="text-sm md:text-base text-white/60 max-w-2xl font-light leading-relaxed">
-            Annual telemetry and continuous shipping metrics rendered as an interactive 3D isometric skyline. Toggle between 2D heatmap and 3D architectural projection.
+            Public open-source telemetry and verified patches rendered as an interactive 3D isometric skyline. Toggle between 2D heatmap and 3D architectural projection.
+          </p>
+          <p className="text-[11px] font-mono text-white/40">
+            * Note: Core enterprise services and client production architectures are maintained in private repositories.
           </p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-[#0c0c10] p-2 md:p-4 overflow-hidden shadow-2xl">
           <ContributionSkyline
+            data={contributions}
             defaultView="3d"
             palette="ember"
+            unit="patch"
+            unitPlural="patches"
             className="!border-white/10 !bg-[#0c0c10] !text-[#EDE8DF]"
           />
         </div>

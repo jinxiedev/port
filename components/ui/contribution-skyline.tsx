@@ -387,52 +387,34 @@ function Stat({
   size: number
   align: "start" | "end" | "stack"
 }) {
-  if (align === "stack") {
-    return (
-      <div className="min-w-0">
-        <div className="text-[13px] leading-tight" style={{ color: MUTED }}>
-          {label}
-        </div>
-        <div className="mt-1 flex items-baseline gap-1.5">
-          <span
-            className="font-semibold tabular-nums transition-colors duration-500 motion-reduce:transition-none"
-            style={{ color: accent, fontSize: size, lineHeight: 1, letterSpacing: "-0.02em" }}
-          >
-            {value}
-          </span>
-          <span className="text-[14px]">{unit}</span>
-        </div>
-        <div className="mt-0.5 truncate text-[12px]" style={{ color: MUTED }}>
-          {sub}
-        </div>
-      </div>
-    )
-  }
+  const isEnd = align === "end"
+  const isStack = align === "stack"
+
   return (
-    <div className="grid grid-cols-[auto_auto] items-end gap-x-2" style={{ justifyContent: align }}>
-      {align === "end" ? (
-        <>
-          <div className="text-right text-[13px] leading-tight" style={{ color: MUTED }}>
-            {label}
-          </div>
-          <div />
-        </>
-      ) : (
-        <div className="col-span-2 text-[13px] leading-tight" style={{ color: MUTED }}>
-          {label}
-        </div>
-      )}
-      <div
-        className="text-right font-semibold tabular-nums transition-colors duration-500 motion-reduce:transition-none"
-        style={{ color: accent, fontSize: size, lineHeight: 0.95, letterSpacing: "-0.02em" }}
-      >
-        {value}
+    <div
+      className={`min-w-0 flex flex-col ${
+        isEnd ? "items-end text-right" : "items-start text-left"
+      }`}
+    >
+      <div className="text-[12px] font-mono tracking-wider uppercase leading-snug" style={{ color: MUTED }}>
+        {label}
       </div>
-      <div className="pb-[0.15em] leading-tight">
-        <div className="text-[15px]">{unit}</div>
-        <div className="whitespace-nowrap text-[13px]" style={{ color: MUTED }}>
-          {sub}
-        </div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span
+          className="font-semibold tabular-nums leading-none tracking-tight transition-colors duration-500 motion-reduce:transition-none"
+          style={{ color: accent, fontSize: size, letterSpacing: "-0.02em" }}
+        >
+          {value}
+        </span>
+        <span className="text-[13px] font-medium leading-none text-white/70">
+          {unit}
+        </span>
+      </div>
+      <div
+        className={`mt-1 text-[11px] font-mono leading-tight ${isStack ? "truncate max-w-[200px]" : "whitespace-nowrap"}`}
+        style={{ color: MUTED }}
+      >
+        {sub}
       </div>
     </div>
   )
