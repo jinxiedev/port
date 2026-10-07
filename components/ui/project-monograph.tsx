@@ -49,107 +49,75 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
       return {
         id: project.id,
         content: (
-          <div className="relative size-full p-6 flex flex-col justify-between bg-gradient-to-b from-[#14141d] to-[#0a0a0e] text-[#EDE8DF] overflow-hidden select-none">
-            {/* Corner Blueprint Crosshairs */}
-            <span className="absolute top-2.5 left-2.5 font-mono text-[9px] text-[#D97757]/60 select-none">
-              +
-            </span>
-            <span className="absolute top-2.5 right-2.5 font-mono text-[9px] text-[#D97757]/60 select-none">
-              +
-            </span>
-            <span className="absolute bottom-2.5 left-2.5 font-mono text-[9px] text-[#D97757]/60 select-none">
-              +
-            </span>
-            <span className="absolute bottom-2.5 right-2.5 font-mono text-[9px] text-[#D97757]/60 select-none">
-              +
+          <div className="relative size-full p-7 sm:p-8 flex flex-col justify-between bg-gradient-to-b from-[#111118] via-[#0c0c11] to-[#07070a] text-[#EDE8DF] overflow-hidden select-none group">
+            {/* Ambient Background Warmth */}
+            <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-[#D97757]/[0.05] blur-3xl pointer-events-none" />
+
+            {/* Faint Architectural Watermark Numeral */}
+            <span className="absolute top-1 right-4 font-serif text-[110px] leading-none font-extralight text-white/[0.03] select-none pointer-events-none tracking-tighter">
+              {indexStr}
             </span>
 
-            {/* Subtle Blueprint Grid Pattern Watermark */}
-            <div
-              className="absolute inset-0 opacity-[0.03] pointer-events-none"
-              style={{
-                backgroundImage:
-                  "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
-                backgroundSize: "20px 20px",
-              }}
-            />
-
-            {/* Header: Index, Status & Domain */}
-            <div className="relative z-10 space-y-3">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[#D97757] font-bold text-[11px] tracking-wider">
-                    SPEC {indexStr}
-                  </span>
-                  <span className="text-white/20">/</span>
-                  <span className="text-white/40 text-[10px] tracking-widest">
-                    {totalStr}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-mono text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>ONLINE</span>
-                </div>
+            {/* Top Bar: Minimal Editorial Meta */}
+            <div className="relative z-10 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D97757]" />
+                <span className="text-[10px] font-mono tracking-[0.22em] text-[#D97757] uppercase font-medium">
+                  {project.domain || "SYSTEM"}
+                </span>
               </div>
+              <span className="text-[11px] font-mono text-white/30 tracking-widest">
+                {indexStr} &mdash; {totalStr}
+              </span>
+            </div>
 
-              <div className="text-[10px] tracking-[0.2em] text-[#D97757] uppercase font-mono truncate">
-                // {project.domain || "DISTRIBUTED SYSTEM"}
-              </div>
-
-              {/* Title & Description */}
-              <h4 className="font-serif text-2xl text-[#EDE8DF] font-medium leading-snug line-clamp-2">
+            {/* Middle: Editorial Title & Description */}
+            <div className="relative z-10 space-y-3 my-auto">
+              <h4 className="font-serif text-2xl sm:text-[25px] font-normal text-[#EDE8DF] tracking-tight leading-snug line-clamp-2">
                 {project.title}
               </h4>
-
-              <p className="text-xs text-white/60 font-light leading-relaxed line-clamp-3">
+              <p className="text-[13px] text-white/55 font-light leading-relaxed line-clamp-3">
                 {project.description}
               </p>
             </div>
 
-            {/* Lower: Telemetry Metrics & Action */}
-            <div className="relative z-10 space-y-4 pt-2">
+            {/* Bottom: Minimalist Telemetry & Tech Details */}
+            <div className="relative z-10 pt-4 border-t border-white/[0.06] space-y-3.5">
               {/* Telemetry Metric Readout */}
-              <div className="py-2.5 px-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] flex items-center justify-between">
-                <div>
-                  <div className="font-mono text-xl font-light text-[#D97757] tracking-tight">
+              <div className="flex items-baseline justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/40 block">
+                    {project.metricLabel || "CORE TELEMETRY"}
+                  </span>
+                  <span className="font-mono text-xl sm:text-2xl font-light text-[#EDE8DF] tracking-tight">
                     {project.metric || "ACTIVE"}
-                  </div>
-                  <span className="block text-[9px] font-mono uppercase tracking-widest text-white/40">
-                    {project.metricLabel || "Production Deployment"}
                   </span>
                 </div>
-                <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-400/90 px-2 py-0.5 rounded border border-emerald-400/20 bg-emerald-400/5">
-                  VERIFIED
-                </span>
+                <div className="flex items-center gap-1.5 text-[9px] font-mono text-white/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400/90 uppercase tracking-widest">VERIFIED</span>
+                </div>
               </div>
 
-              {/* Tech Stack Pills & Launch Link */}
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
-                <div className="flex flex-wrap items-center gap-1 max-w-[200px]">
-                  {project.tags.slice(0, 3).map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[9px] font-mono px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.08] text-white/60"
-                    >
-                      {tag}
-                    </span>
+              {/* Minimalist Tech Stack & View Link */}
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-white/40 tracking-wider truncate max-w-[200px]">
+                  {project.tags.slice(0, 3).map((tag, i) => (
+                    <React.Fragment key={tag}>
+                      {i > 0 && <span className="text-white/20">/</span>}
+                      <span className="text-white/60">{tag}</span>
+                    </React.Fragment>
                   ))}
-                  {project.tags.length > 3 && (
-                    <span className="text-[8px] font-mono text-white/30">
-                      +{project.tags.length - 3}
-                    </span>
-                  )}
                 </div>
 
                 <a
                   href={project.project_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-mono tracking-widest uppercase text-[#D97757] hover:text-white transition-colors shrink-0 group/link"
+                  className="inline-flex items-center gap-1 text-[11px] font-mono tracking-widest uppercase text-[#D97757] hover:text-[#EDE8DF] transition-colors shrink-0 group/link"
                 >
-                  <span>Launch</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
+                  <span>View System</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
                 </a>
               </div>
             </div>
@@ -212,12 +180,12 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
           index={carouselIndex}
           onIndexChange={setCarouselIndex}
           loop={true}
-          cardWidth={380}
+          cardWidth={370}
           cardHeight={390}
-          containerHeight={450}
-          spacing={280}
-          depth={170}
-          rotation={35}
+          containerHeight={440}
+          spacing={260}
+          depth={160}
+          rotation={32}
           scaleStep={0.14}
           autoplay={false}
           className="w-full"

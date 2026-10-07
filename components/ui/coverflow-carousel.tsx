@@ -201,13 +201,20 @@ export const CoverflowCarousel = ({
               }
               aria-hidden={!isActive}
               className={cn(
-                "absolute overflow-hidden rounded-2xl border border-white/10 bg-[#0c0c12] shadow-2xl transition-colors",
-                isActive ? "border-[#D97757]/40 ring-1 ring-[#D97757]/20 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)]" : "opacity-60",
+                "absolute overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0b0b10] transition-all duration-300",
+                isActive
+                  ? "border-white/20 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),0_0_35px_rgba(217,119,87,0.08)] opacity-100"
+                  : "opacity-35 hover:opacity-60 cursor-pointer",
                 cardClassName
               )}
               key={item.id}
+              onClick={() => {
+                if (!isActive) {
+                  goTo(i);
+                }
+              }}
               style={{
-                width: cardWidth,
+                width: typeof cardWidth === "number" ? `min(${cardWidth}px, calc(100vw - 48px))` : cardWidth,
                 height: cardHeight,
                 transformStyle: "preserve-3d",
                 zIndex: total - Math.abs(offset),
