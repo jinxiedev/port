@@ -89,6 +89,21 @@ export const FALLBACK_PROJECTS: Project[] = [
 const FIRESTORE_ENDPOINT =
   "https://firestore.googleapis.com/v1/projects/portofolio-jinshi/databases/(default)/documents/projects?key=AIzaSyAkv2HYEYgkvUxWfyz9X-0R6htnXSkZrU4"
 
+const METADATA_DICTIONARY: Record<string, { domain: string; metric: string; metricLabel: string }> = {
+  jinsvision: { domain: "AI MEDIA PIPELINE", metric: "4X UPSCALE", metricLabel: "Video & Image Super-Resolution" },
+  jinxverse: { domain: "STREAMING ARCHITECTURE", metric: "0 JANK", metricLabel: "Dynamic TMDB Sync & Player" },
+  whatsapp: { domain: "SYSTEMS & RUNTIME", metric: "-80% RAM", metricLabel: "WebSocket vs Headless Browser" },
+  file: { domain: "STORAGE & CDN", metric: "<150ms TTFB", metricLabel: "Edge Caching & Chunked Uploads" },
+  weather: { domain: "GEOSPATIAL & METRICS", metric: "LIVE SYNC", metricLabel: "GPS & Map Coordinates" },
+  cosmic: { domain: "CREATIVE WEB", metric: "60 FPS", metricLabel: "Zero Dependency Canvas Loop" },
+  space: { domain: "CREATIVE WEB", metric: "60 FPS", metricLabel: "Zero Dependency Canvas Loop" },
+  chat: { domain: "AI CONVERSATIONAL ENGINE", metric: "<300ms TTFB", metricLabel: "Llama 4 & DeepSeek Streaming" },
+  upscale: { domain: "AI VISION ENGINE", metric: "4K RESOLUTION", metricLabel: "Real-ESRGAN Model Pipeline" },
+  crypto: { domain: "FINTECH TELEMETRY", metric: "REALTIME", metricLabel: "WebSocket CoinGecko Ingestion" },
+  company: { domain: "ENTERPRISE CLIENT", metric: "100% SEO", metricLabel: "Next.js Static Generation" },
+  courier: { domain: "LOGISTICS ARCHITECTURE", metric: "MULTI-CARRIER", metricLabel: "Unified Tracking Engine" },
+}
+
 export async function getLiveProjects(): Promise<Project[]> {
   try {
     const res = await fetch(FIRESTORE_ENDPOINT, { next: { revalidate: 300 } })
@@ -112,6 +127,11 @@ export async function getLiveProjects(): Promise<Project[]> {
         (p) => p.title.toLowerCase() === title.toLowerCase() || p.id === id
       )
 
+      // Match with keyword dictionary
+      const titleLower = title.toLowerCase()
+      const key = Object.keys(METADATA_DICTIONARY).find((k) => titleLower.includes(k) || id.toLowerCase().includes(k))
+      const meta = key ? METADATA_DICTIONARY[key] : undefined
+
       return {
         id,
         title,
@@ -120,9 +140,9 @@ export async function getLiveProjects(): Promise<Project[]> {
         project_url,
         tags: tags.length > 0 ? tags : matched?.tags || [],
         created_at: f.created_at?.timestampValue,
-        domain: matched?.domain || "FULLSTACK APPLICATION",
-        metric: matched?.metric || "ACTIVE",
-        metricLabel: matched?.metricLabel || "Production Deployment",
+        domain: matched?.domain || meta?.domain || "FULLSTACK APPLICATION",
+        metric: matched?.metric || meta?.metric || "ACTIVE",
+        metricLabel: matched?.metricLabel || meta?.metricLabel || "Production Deployment",
       }
     })
 

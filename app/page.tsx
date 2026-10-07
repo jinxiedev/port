@@ -3,7 +3,7 @@ import * as React from "react"
 import dynamic from "next/dynamic"
 import { ArrowUpRight, Database, Layers, Code2 } from "lucide-react"
 import { WorksWheel } from "@/components/ui/works-wheel"
-import { InkOrbitFeatures } from "@/components/ui/ink-orbit-features"
+import { ProjectMonograph } from "@/components/ui/project-monograph"
 import { CinematicFooter } from "@/components/ui/motion-footer"
 import { ImmersivePreloader } from "@/components/ui/immersive-preloader"
 import { AdminGate } from "@/components/admin/admin-gate"
@@ -163,14 +163,9 @@ export default function Home() {
           className="w-full"
         />
 
-        {/* Architecture & Engineering Telemetry Bento */}
-        <div className="max-w-5xl mx-auto px-4 md:px-6 pt-6 pb-4">
-          <InkOrbitFeatures
-            theme="dark"
-            brand="JINSHI CORE"
-            tag="SYSTEM ARCHITECTURE"
-            title="Distributed Systems *\nTelemetry & Architecture*"
-          />
+        {/* Architectural Monograph & Detailed Project Dossier */}
+        <div className="max-w-5xl mx-auto px-4 md:px-6 pt-10">
+          <ProjectMonograph projects={projects} />
         </div>
       </section>
 
