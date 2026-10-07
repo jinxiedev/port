@@ -7,19 +7,38 @@ import { MeshTransmissionMaterial, Environment, Lightformer } from "@react-three
 import { motion, useAnimationControls, useReducedMotion } from "motion/react"
 
 /* -------------------------------------------------------------------------- */
+/*  Error Boundary for WebGL                                                  */
+/* -------------------------------------------------------------------------- */
+
+class WebGLErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn("WebGL / Three.js render warning:", error)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback ?? null
+    }
+    return this.props.children
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Headline texture                                                          */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Draws the headline to a canvas so it can live *inside* the 3D scene, which
- * is what lets the crystal actually refract it. Using the page's own fonts
- * keeps the component free of external assets.
- */
-/**
- * Canvas `ctx.font` does not understand CSS custom properties, so any
- * `var(--x)` in the stack has to be resolved against the document first —
- * otherwise the assignment is rejected and text silently falls back to 10px.
- */
 function resolveFontStack(stack: string): string {
   if (typeof window === "undefined") return stack
   const root = getComputedStyle(document.documentElement)
@@ -47,40 +66,55 @@ function drawHeadline(
 
   ctx.clearRect(0, 0, W, H)
 
-  // Fit the headline to the canvas width rather than guessing a size.
   const stack = resolveFontStack(fontFamily)
   const style = italic ? "italic " : ""
-  let size = 460
-  do {
-    ctx.font = `${style}500 ${size}px ${stack}`
-    size -= 8
-  } while (ctx.measureText(text).width > W * 0.92 && size > 40)
 
-  ctx.fillStyle = color
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
+
+  if ("letterSpacing" in ctx) {
+    ;(ctx as any).letterSpacing = "0.20em"
+  }
+
+  // Target width: 88% of canvas so 'j' and 'i' are slightly smaller and refined
+  const targetWidth = W * 0.88
+  let size = 340
+  ctx.font = `${style}500 ${size}px ${stack}`
+
+  let measured = ctx.measureText(text).width
+  if (measured > 0) {
+    size = Math.round(size * (targetWidth / measured))
+    size = Math.min(size, Math.floor(H * 0.76))
+    ctx.font = `${style}500 ${size}px ${stack}`
+    measured = ctx.measureText(text).width
+
+    // Fine-tune if needed
+    if (measured > 0 && Math.abs(measured - targetWidth) > 12) {
+      size = Math.round(size * (targetWidth / measured))
+      size = Math.min(size, Math.floor(H * 0.76))
+      ctx.font = `${style}500 ${size}px ${stack}`
+    }
+  }
+
+  ctx.fillStyle = color
   ctx.fillText(text, W / 2, H / 2)
 
   const t = new THREE.CanvasTexture(canvas)
   t.colorSpace = THREE.SRGBColorSpace
   t.anisotropy = 8
+  t.wrapS = THREE.ClampToEdgeWrapping
+  t.wrapT = THREE.ClampToEdgeWrapping
   t.needsUpdate = true
   return t
 }
 
-/**
- * Built synchronously so the mesh mounts with its map already attached —
- * attaching a map to an already-mounted material is a well-known three.js
- * trap. Redrawn once webfonts land so the real face is baked in.
- */
 function useHeadlineTexture(
   text: string,
   color: string,
   fontFamily: string,
   italic: boolean
 ) {
-  // Built once, synchronously, so the mesh mounts with its map attached.
-  const [texture, setTexture] = React.useState(() =>
+  const [texture, setTexture] = React.useState<THREE.CanvasTexture | null>(() =>
     drawHeadline(text, color, fontFamily, italic)
   )
 
@@ -89,11 +123,9 @@ function useHeadlineTexture(
     const rebake = () => {
       if (!cancelled) setTexture(drawHeadline(text, color, fontFamily, italic))
     }
-    // Re-bake once webfonts land, otherwise the fallback face is baked in.
+    rebake()
     if (document.fonts?.ready) {
       document.fonts.ready.then(rebake).catch(rebake)
-    } else {
-      rebake()
     }
     return () => {
       cancelled = true
@@ -112,16 +144,28 @@ function Headline({
   texture: THREE.CanvasTexture | null
   z?: number
 }) {
-  const { viewport } = useThree()
+  const { viewport, camera } = useThree()
+  const portrait = viewport.width < viewport.height
 
-  // Fill most of the frame; the crystal sits in front of it.
-  const width = Math.min(viewport.width * 0.96, 16)
+  // World Z of Headline inside FocalGroup (which has position [0, 0, portrait ? -0.4 : 0])
+  const groupZ = portrait ? -0.4 : 0
+  const worldZ = groupZ + z
+  const pCamera = camera as THREE.PerspectiveCamera
+  const distance = pCamera.position.z - worldZ
+  const vFovRad = (pCamera.fov * Math.PI) / 180
+  const visibleHeight = 2 * Math.tan(vFovRad / 2) * distance
+  const screenAspect = viewport.width / viewport.height
+  const screenWidthAtZ = visibleHeight * screenAspect
+
+  // Slightly smaller width and gentle nudge to the right
+  const width = portrait ? screenWidthAtZ * 1.02 : screenWidthAtZ * 0.98
   const height = width * (640 / 2048)
+  const xOffset = portrait ? 0.08 : 0.14
 
   if (!texture) return null
 
   return (
-    <mesh position={[0, 0, z]} renderOrder={-1}>
+    <mesh position={[xOffset, 0.18, z]} renderOrder={-1}>
       <planeGeometry args={[width, height]} />
       <meshBasicMaterial
         map={texture}
@@ -136,6 +180,125 @@ function Headline({
 /* -------------------------------------------------------------------------- */
 /*  Crystal                                                                   */
 /* -------------------------------------------------------------------------- */
+
+function createCurvedSpikeGeometry() {
+  // High-subdivision sphere base for smooth curvature and clean normals
+  const geom = new THREE.SphereGeometry(1.2, 80, 80)
+  const pos = geom.attributes.position
+  const v = new THREE.Vector3()
+  const normal = new THREE.Vector3()
+
+  // 10 organic curved lobes/spikes distributed in 3D space
+  // Each lobe has:
+  // - dir: center direction on the sphere
+  // - height: protrusion distance (curved spike length)
+  // - power: dome curvature exponent (>= 2.8 ensures a smooth rounded dome, NEVER sharp/pointy)
+  // - curl: lateral deflection direction to give the spike a smooth curved/bent profile
+  const lobes = [
+    // Top sweeping curved lobes
+    {
+      dir: new THREE.Vector3(0.52, 0.78, 0.34).normalize(),
+      height: 0.54,
+      power: 3.2,
+      curl: new THREE.Vector3(-0.28, 0.12, 0.32),
+    },
+    {
+      dir: new THREE.Vector3(-0.58, 0.72, 0.38).normalize(),
+      height: 0.50,
+      power: 3.0,
+      curl: new THREE.Vector3(0.24, 0.16, -0.28),
+    },
+    {
+      dir: new THREE.Vector3(0.12, 0.85, -0.52).normalize(),
+      height: 0.58,
+      power: 3.4,
+      curl: new THREE.Vector3(0.30, 0.10, 0.22),
+    },
+    {
+      dir: new THREE.Vector3(-0.50, 0.55, -0.67).normalize(),
+      height: 0.46,
+      power: 3.0,
+      curl: new THREE.Vector3(-0.20, 0.20, 0.24),
+    },
+
+    // Mid-waist dynamic curved lobes
+    {
+      dir: new THREE.Vector3(0.88, 0.08, -0.46).normalize(),
+      height: 0.55,
+      power: 3.1,
+      curl: new THREE.Vector3(-0.15, 0.30, 0.26),
+    },
+    {
+      dir: new THREE.Vector3(-0.85, 0.15, -0.50).normalize(),
+      height: 0.48,
+      power: 2.9,
+      curl: new THREE.Vector3(0.20, -0.24, 0.20),
+    },
+    {
+      dir: new THREE.Vector3(0.42, -0.22, 0.88).normalize(),
+      height: 0.52,
+      power: 3.2,
+      curl: new THREE.Vector3(-0.24, -0.15, 0.22),
+    },
+    {
+      dir: new THREE.Vector3(-0.70, -0.28, 0.65).normalize(),
+      height: 0.48,
+      power: 3.0,
+      curl: new THREE.Vector3(0.22, 0.20, -0.16),
+    },
+
+    // Bottom anchoring curved lobes
+    {
+      dir: new THREE.Vector3(0.22, -0.84, -0.50).normalize(),
+      height: 0.50,
+      power: 3.2,
+      curl: new THREE.Vector3(0.20, 0.12, 0.26),
+    },
+    {
+      dir: new THREE.Vector3(-0.32, -0.86, 0.38).normalize(),
+      height: 0.54,
+      power: 3.3,
+      curl: new THREE.Vector3(-0.22, -0.10, 0.30),
+    },
+  ]
+
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i)
+    normal.copy(v).normalize()
+
+    let totalDisplacement = 0
+    const lateralCurl = new THREE.Vector3(0, 0, 0)
+
+    for (const lobe of lobes) {
+      const dot = normal.dot(lobe.dir)
+      if (dot > 0) {
+        // Smooth curved lobe profile:
+        // Exponent >= 2.9 guarantees zero slope at base and a rounded dome at the tip (never sharp/runcing)
+        const w = Math.pow(dot, lobe.power)
+        totalDisplacement += w * lobe.height
+
+        // Lateral deflection that increases towards the tip, curving the spike gracefully
+        lateralCurl.addScaledVector(lobe.curl, Math.pow(dot, lobe.power * 0.85) * lobe.height)
+      }
+    }
+
+    // Subtle micro-undulation across surface for organic liquid realism
+    const ripple =
+      Math.sin(normal.x * 4.0) *
+      Math.cos(normal.y * 4.0) *
+      Math.sin(normal.z * 4.0) *
+      0.03
+
+    // Apply radial expansion + lateral curl deflection
+    const newRadius = v.length() + totalDisplacement + ripple
+    v.copy(normal).multiplyScalar(newRadius).add(lateralCurl)
+
+    pos.setXYZ(i, v.x, v.y, v.z)
+  }
+
+  geom.computeVertexNormals()
+  return geom
+}
 
 function Crystal({
   progress,
@@ -154,14 +317,51 @@ function Crystal({
   const pointer = React.useRef({ x: 0, y: 0 })
   const { viewport } = useThree()
 
-  // Size the stone against the *smaller* viewport axis so it never dominates
-  // a portrait phone the way a fixed world-radius does.
+  // Physics state for magnetic liquid split & snap-back
+  const isHoldingRef = React.useRef(false)
+  const holdTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sep = React.useRef(0) // 0 (unified) to 1 (fully separated)
+  const sepVel = React.useRef(0)
+  const impactWobble = React.useRef(0)
+
+  const startHold = React.useCallback(() => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+    // Only activate if held for > 200ms (tap doang = gada animasi apa-apa)
+    holdTimerRef.current = setTimeout(() => {
+      isHoldingRef.current = true
+    }, 200)
+  }, [])
+
+  const endHold = React.useCallback(() => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
+    }
+    isHoldingRef.current = false
+  }, [])
+
+  // Satellite mesh references
+  const sat1Ref = React.useRef<THREE.Mesh>(null)
+  const sat2Ref = React.useRef<THREE.Mesh>(null)
+  const sat3Ref = React.useRef<THREE.Mesh>(null)
+  const sat4Ref = React.useRef<THREE.Mesh>(null)
+
+  // Generate smooth curved spike geometry once (shared by main drop and satellite drops)
+  const spikedGeometry = React.useMemo(() => createCurvedSpikeGeometry(), [])
+
+  React.useEffect(() => {
+    return () => {
+      spikedGeometry.dispose()
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+    }
+  }, [spikedGeometry])
+
   const portrait = viewport.width < viewport.height
   const fit = Math.min(viewport.width, viewport.height)
   const baseScale = THREE.MathUtils.clamp(
-    fit / 5.1,
-    portrait ? 0.3 : 0.42,
-    1
+    fit / 6.2,
+    portrait ? 0.26 : 0.34,
+    0.78
   )
 
   React.useEffect(() => {
@@ -170,55 +370,232 @@ function Crystal({
       pointer.current.x = (e.clientX / window.innerWidth - 0.5) * 2
       pointer.current.y = (e.clientY / window.innerHeight - 0.5) * 2
     }
+    const onUp = () => {
+      endHold()
+    }
     window.addEventListener("pointermove", onMove, { passive: true })
-    return () => window.removeEventListener("pointermove", onMove)
-  }, [reducedMotion])
+    window.addEventListener("pointerup", onUp)
+    window.addEventListener("pointercancel", onUp)
+    return () => {
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", onUp)
+      window.removeEventListener("pointercancel", onUp)
+    }
+  }, [reducedMotion, endHold])
 
   useFrame((state, delta) => {
     const mesh = ref.current
     if (!mesh) return
-    const p = progress.current ?? 0
     const t = state.clock.elapsedTime
+    const dt = Math.min(delta, 0.04)
 
-    // Slow idle rotation, accelerated by scroll. Never linear — the drift
-    // keeps facets catching light at irregular intervals.
-    const spin = reducedMotion ? 0 : t * 0.13 + p * Math.PI * 1.1
-    mesh.rotation.y = spin
-    mesh.rotation.x = Math.sin(t * 0.21) * 0.14 + p * 0.4
-    mesh.rotation.z = Math.cos(t * 0.17) * 0.08
+    // Magnetic spring simulation:
+    // Only activates when HELD (tap doang = no animation)
+    const targetSep = isHoldingRef.current ? 1.0 : 0.0
+    const springK = isHoldingRef.current ? 36 : 60
+    const damping = isHoldingRef.current ? 7.5 : 8.8
 
-    // Ease toward the pointer rather than tracking it exactly.
-    const tx = pointer.current.x * 0.35
-    const ty = -pointer.current.y * 0.28
-    mesh.position.x += (tx - mesh.position.x) * Math.min(1, delta * 2.2)
-    mesh.position.y += (ty - mesh.position.y) * Math.min(1, delta * 2.2)
+    const force = (targetSep - sep.current) * springK - sepVel.current * damping
+    sepVel.current += force * dt
+    const prevSep = sep.current
+    sep.current += sepVel.current * dt
 
-    mesh.scale.setScalar(baseScale * (1 + p * 0.18))
+    // Trigger elastic impact shockwave when magnetic droplets slam back into the core
+    if (prevSep > 0.03 && sep.current <= 0.03 && !isHoldingRef.current) {
+      impactWobble.current = 1.0
+    }
+    if (impactWobble.current > 0.001) {
+      impactWobble.current = Math.max(0, impactWobble.current - dt * 2.8)
+    }
+
+    const s = Math.max(0, sep.current)
+
+    // Viscous fluid movement & organic multi-axis tumbling
+    const rotY = reducedMotion ? 0 : Math.sin(t * 0.12) * 0.4 + Math.cos(t * 0.05) * 0.3
+    const rotX = reducedMotion ? 0 : Math.cos(t * 0.10) * 0.35 + Math.sin(t * 0.06) * 0.2
+    const rotZ = reducedMotion ? 0 : Math.sin(t * 0.08) * 0.25
+
+    // Fluid drag from pointer
+    const tx = pointer.current.x * 0.4
+    const ty = -pointer.current.y * 0.35
+
+    mesh.rotation.y = THREE.MathUtils.damp(mesh.rotation.y, rotY + tx, 2.5, delta)
+    mesh.rotation.x = THREE.MathUtils.damp(mesh.rotation.x, rotX + ty, 2.5, delta)
+    mesh.rotation.z = THREE.MathUtils.damp(mesh.rotation.z, rotZ + tx * ty * 0.2, 2.5, delta)
+
+    // Gentle organic floating drift (centered optically)
+    const floatY = Math.sin(t * 0.65) * 0.045
+    const floatX = Math.cos(t * 0.5) * 0.035
+    mesh.position.x = THREE.MathUtils.damp(mesh.position.x, floatX + tx * 0.25, 2.2, delta)
+    mesh.position.y = THREE.MathUtils.damp(mesh.position.y, 0.18 + floatY + ty * 0.2, 2.2, delta)
+
+    // Dynamic surface tension breathing + heartbeat denyut when held
+    const holdDenyut = isHoldingRef.current ? Math.sin(t * 8.5) * 0.06 : 0
+    const pulseX = 1 + Math.sin(t * 1.1) * 0.03 + holdDenyut
+    const pulseY = 1 + Math.cos(t * 1.3) * 0.03 - holdDenyut * 0.5
+    const pulseZ = 1 - Math.sin(t * 1.1) * 0.02 + holdDenyut
+
+    // Central core: shrinks slightly when split to conserve liquid mass, and wobbles on magnetic recombine
+    const wobble = Math.sin(t * 22) * impactWobble.current * 0.15
+    const coreFactor = (1 - s * 0.28) + wobble
+    mesh.scale.set(
+      baseScale * pulseX * coreFactor,
+      baseScale * pulseY * coreFactor,
+      baseScale * pulseZ * coreFactor
+    )
+
+    // Satellite magnetic droplets
+    const spreadDistance = portrait ? 1.1 : 1.45
+    const satScaleProgress = THREE.MathUtils.smoothstep(s, 0.02, 0.45)
+
+    const satellites = [
+      { ref: sat1Ref, dir: new THREE.Vector3( 1.15,  0.80,  0.35), size: 0.52, spin: [ 1.2,  0.9, -0.7] },
+      { ref: sat2Ref, dir: new THREE.Vector3(-1.10, -0.72,  0.42), size: 0.46, spin: [-0.8,  1.1,  0.6] },
+      { ref: sat3Ref, dir: new THREE.Vector3(-0.78,  0.95, -0.38), size: 0.40, spin: [ 0.9, -1.0,  0.8] },
+      { ref: sat4Ref, dir: new THREE.Vector3( 0.86, -0.82, -0.32), size: 0.36, spin: [-1.1,  0.7, -0.9] },
+    ]
+
+    satellites.forEach(({ ref: sRef, dir, size, spin }) => {
+      const sat = sRef.current
+      if (!sat) return
+      sat.visible = s > 0.008
+
+      if (sat.visible) {
+        const dist = s * spreadDistance
+        sat.position.set(
+          mesh.position.x + dir.x * dist + tx * 0.12,
+          mesh.position.y + dir.y * dist + ty * 0.12,
+          dir.z * dist
+        )
+        sat.rotation.x = rotX + t * spin[0] * 0.6
+        sat.rotation.y = rotY + t * spin[1] * 0.6
+        sat.rotation.z = rotZ + t * spin[2] * 0.6
+
+        const curSize = baseScale * size * satScaleProgress * (1 + Math.sin(t * 2.8 + dir.x * 3) * 0.04)
+        sat.scale.set(curSize, curSize, curSize)
+      }
+    })
   })
 
   return (
-    <mesh ref={ref} position={[0, 0, 0]}>
-      {/* 20 flat facets. Slightly elongated so it reads as cut, not a ball. */}
-      <icosahedronGeometry args={[1.32, 0]} />
-      <MeshTransmissionMaterial
-        transmission={1}
-        thickness={1.35}
-        roughness={0.03}
-        ior={1.92}
-        chromaticAberration={dispersion}
-        anisotropy={0.25}
-        distortion={0.18}
-        distortionScale={0.35}
-        temporalDistortion={0.06}
-        backside={spec.backside}
-        backsideThickness={0.5}
-        samples={spec.samples}
-        resolution={spec.resolution}
-        color={tint}
-        attenuationColor={tint}
-        attenuationDistance={8}
-      />
-    </mesh>
+    <group
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        startHold()
+      }}
+    >
+      {/* Invisible backdrop raycast plane to catch holds anywhere in hero */}
+      <mesh
+        position={[0, 0, -1]}
+        visible={false}
+        onPointerDown={() => {
+          startHold()
+        }}
+      >
+        <planeGeometry args={[100, 100]} />
+      </mesh>
+
+      {/* Primary Central Core */}
+      <mesh ref={ref} position={[0, 0.18, 0]} geometry={spikedGeometry}>
+        <MeshTransmissionMaterial
+          transmission={1}
+          thickness={1.35}
+          roughness={0.035}
+          ior={1.48}
+          chromaticAberration={dispersion}
+          anisotropy={0.25}
+          anisotropicBlur={0.15}
+          distortion={0.48}
+          distortionScale={0.35}
+          temporalDistortion={0.3}
+          backside={spec.backside ?? true}
+          backsideThickness={0.5}
+          samples={spec.samples ?? 6}
+          resolution={spec.resolution ?? 384}
+          color={tint}
+          attenuationColor={tint}
+          attenuationDistance={8}
+        />
+      </mesh>
+
+      {/* Satellite Magnetic Droplets - Identical curved-spike dynamic geometry & RGB chromatic refraction shader */}
+      <mesh ref={sat1Ref} geometry={spikedGeometry} visible={false}>
+        <MeshTransmissionMaterial
+          transmission={1}
+          thickness={1.1}
+          roughness={0.035}
+          ior={1.48}
+          chromaticAberration={dispersion}
+          anisotropy={0.25}
+          anisotropicBlur={0.15}
+          distortion={0.4}
+          distortionScale={0.3}
+          temporalDistortion={0.25}
+          samples={Math.min(spec.samples ?? 4, 4)}
+          resolution={Math.min(spec.resolution ?? 256, 256)}
+          color={tint}
+          attenuationColor={tint}
+          attenuationDistance={8}
+        />
+      </mesh>
+      <mesh ref={sat2Ref} geometry={spikedGeometry} visible={false}>
+        <MeshTransmissionMaterial
+          transmission={1}
+          thickness={1.1}
+          roughness={0.035}
+          ior={1.48}
+          chromaticAberration={dispersion}
+          anisotropy={0.25}
+          anisotropicBlur={0.15}
+          distortion={0.4}
+          distortionScale={0.3}
+          temporalDistortion={0.25}
+          samples={Math.min(spec.samples ?? 4, 4)}
+          resolution={Math.min(spec.resolution ?? 256, 256)}
+          color={tint}
+          attenuationColor={tint}
+          attenuationDistance={8}
+        />
+      </mesh>
+      <mesh ref={sat3Ref} geometry={spikedGeometry} visible={false}>
+        <MeshTransmissionMaterial
+          transmission={1}
+          thickness={1.1}
+          roughness={0.035}
+          ior={1.48}
+          chromaticAberration={dispersion}
+          anisotropy={0.25}
+          anisotropicBlur={0.15}
+          distortion={0.4}
+          distortionScale={0.3}
+          temporalDistortion={0.25}
+          samples={Math.min(spec.samples ?? 4, 4)}
+          resolution={Math.min(spec.resolution ?? 256, 256)}
+          color={tint}
+          attenuationColor={tint}
+          attenuationDistance={8}
+        />
+      </mesh>
+      <mesh ref={sat4Ref} geometry={spikedGeometry} visible={false}>
+        <MeshTransmissionMaterial
+          transmission={1}
+          thickness={1.1}
+          roughness={0.035}
+          ior={1.48}
+          chromaticAberration={dispersion}
+          anisotropy={0.25}
+          anisotropicBlur={0.15}
+          distortion={0.4}
+          distortionScale={0.3}
+          temporalDistortion={0.25}
+          samples={Math.min(spec.samples ?? 4, 4)}
+          resolution={Math.min(spec.resolution ?? 256, 256)}
+          color={tint}
+          attenuationColor={tint}
+          attenuationDistance={8}
+        />
+      </mesh>
+    </group>
   )
 }
 
@@ -226,7 +603,6 @@ function Crystal({
 /*  Atmosphere                                                                */
 /* -------------------------------------------------------------------------- */
 
-/** Deterministic PRNG — keeps the mote field pure and identical every mount. */
 function mulberry32(seed: number) {
   return function () {
     seed |= 0
@@ -237,7 +613,6 @@ function mulberry32(seed: number) {
   }
 }
 
-/** Slow drifting motes. Gives the frame depth without a texture. */
 function Motes({ count = 90, color }: { count?: number; color: string }) {
   const ref = React.useRef<THREE.Points>(null)
 
@@ -288,16 +663,11 @@ function Motes({ count = 90, color }: { count?: number; color: string }) {
   )
 }
 
-/**
- * Lifts the stone so the lower third stays free for copy. Portrait viewports
- * get less lift and the whole group is pushed back, otherwise the crystal
- * magnifies the headline into an unreadable smear on a phone.
- */
 function FocalGroup({ children }: { children: React.ReactNode }) {
   const { viewport } = useThree()
   const portrait = viewport.width < viewport.height
   return (
-    <group position={[0, portrait ? 0.5 : 0.62, portrait ? -0.6 : 0]}>
+    <group position={[0, 0, portrait ? -0.4 : 0]}>
       {children}
     </group>
   )
@@ -333,31 +703,34 @@ function Scene({
   const texture = useHeadlineTexture(headline, headlineColor, displayFont, italic)
 
   return (
-    <>
-      {/* Studio rig, built from lightformers so nothing is fetched. */}
+    <React.Suspense fallback={null}>
       <Environment resolution={256}>
         <Lightformer
-          intensity={5}
-          position={[0, 5, 4]}
-          scale={[12, 4, 1]}
+          form="ring"
+          intensity={3.5}
+          position={[0, 7, -1]}
+          scale={12}
           color="#fff6e2"
         />
         <Lightformer
-          intensity={3.2}
-          position={[-6, 1, 3]}
-          scale={[4, 9, 1]}
+          form="circle"
+          intensity={2.2}
+          position={[-8, 2, -2]}
+          scale={10}
           color="#bcd6ff"
         />
         <Lightformer
-          intensity={2.6}
-          position={[6, -2, 2]}
-          scale={[5, 6, 1]}
+          form="circle"
+          intensity={2.0}
+          position={[8, -2, -2]}
+          scale={9}
           color="#ffcf96"
         />
         <Lightformer
+          form="ring"
           intensity={1.8}
-          position={[0, -4, -3]}
-          scale={[9, 3, 1]}
+          position={[0, -5, -4]}
+          scale={11}
           color="#ffffff"
         />
       </Environment>
@@ -373,7 +746,7 @@ function Scene({
         />
       </FocalGroup>
       <Motes color={moteColor} count={spec.motes} />
-    </>
+    </React.Suspense>
   )
 }
 
@@ -392,16 +765,11 @@ interface QualitySpec {
 }
 
 const QUALITY: Record<Quality, QualitySpec> = {
-  // Transmission re-renders the scene into a buffer every frame, so samples
-  // and buffer resolution are the two knobs that actually cost money.
-  // samples:2 / res:128 left visible colour speckle on the facets; 3/192 is
-  // still far cheaper than the desktop tier but reads clean.
-  low: { samples: 3, resolution: 192, motes: 30, backside: false, maxDpr: 1.25 },
-  medium: { samples: 4, resolution: 256, motes: 55, backside: true, maxDpr: 1.5 },
-  high: { samples: 6, resolution: 512, motes: 90, backside: true, maxDpr: 1.75 },
+  low: { samples: 4, resolution: 256, motes: 55, backside: true, maxDpr: 1.5 },
+  medium: { samples: 6, resolution: 384, motes: 85, backside: true, maxDpr: 1.75 },
+  high: { samples: 8, resolution: 512, motes: 120, backside: true, maxDpr: 2.0 },
 }
 
-/** Stable subscription so the tier re-evaluates if the window is resized. */
 function subscribeToViewport(cb: () => void) {
   window.addEventListener("resize", cb)
   return () => window.removeEventListener("resize", cb)
@@ -409,10 +777,12 @@ function subscribeToViewport(cb: () => void) {
 
 function detectQuality(): Quality {
   if (typeof window === "undefined") return "medium"
-  const cores = navigator.hardwareConcurrency ?? 4
+  const isMobile =
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    window.innerWidth < 768
+  if (isMobile) return "low"
   const w = window.innerWidth
-  if (w < 768 || cores <= 4) return "low"
-  if (w < 1440 || cores <= 8) return "medium"
+  if (w < 1440) return "medium"
   return "high"
 }
 
@@ -420,7 +790,6 @@ function detectQuality(): Quality {
 /*  Entrance motion                                                           */
 /* -------------------------------------------------------------------------- */
 
-/** Springs rather than duration curves — the settle is what reads as costly. */
 const ENTER = {
   hidden: { opacity: 0, y: 18 },
   show: {
@@ -436,33 +805,95 @@ const GROUP = {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Revert B&W Invert Text Lens                                               */
+/* -------------------------------------------------------------------------- */
+
+function RevertBnWText({
+  text,
+  foreground = "#EDE8DF",
+}: {
+  text: string
+  foreground?: string
+}) {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [pos, setPos] = React.useState({ x: 0, y: 0 })
+  const [isHovered, setIsHovered] = React.useState(false)
+
+  const updatePos = (clientX: number, clientY: number) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setPos({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    })
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={(e) => {
+        updatePos(e.clientX, e.clientY)
+        setIsHovered(true)
+      }}
+      onMouseLeave={() => setIsHovered(false)}
+      onMouseMove={(e) => updatePos(e.clientX, e.clientY)}
+      onTouchStart={(e) => {
+        if (e.touches.length > 0) updatePos(e.touches[0].clientX, e.touches[0].clientY)
+        setIsHovered(true)
+      }}
+      onTouchMove={(e) => {
+        if (e.touches.length > 0) updatePos(e.touches[0].clientX, e.touches[0].clientY)
+      }}
+      onTouchEnd={() => setIsHovered(false)}
+      className="group relative cursor-crosshair select-none rounded-xl p-3 -m-3 border border-transparent hover:border-white/10 hover:bg-white/[0.02] transition-all duration-300"
+    >
+      {/* Base Layer: Dark background, light editorial text */}
+      <p
+        className="text-base md:text-lg leading-relaxed font-light transition-opacity duration-300"
+        style={{ color: foreground }}
+      >
+        {text}
+      </p>
+
+      {/* Inverted B&W Layer: Pitch-black text on crisp paper white mask */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-xl bg-[#EDE8DF] p-3 text-[#08080B]"
+        style={{
+          opacity: isHovered ? 1 : 0,
+          clipPath: isHovered
+            ? `circle(115px at ${pos.x}px ${pos.y}px)`
+            : `circle(0px at ${pos.x}px ${pos.y}px)`,
+          transition: "clip-path 0.1s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease",
+        }}
+      >
+        <p className="text-base md:text-lg leading-relaxed font-medium text-[#08080B]">
+          {text}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Public component                                                          */
 /* -------------------------------------------------------------------------- */
 
 export interface PrismHeroProps {
   eyebrow?: string
-  /** Rendered inside the scene so the crystal refracts it. */
   headline?: string
   description?: string
   action?: React.ReactNode
   secondaryAction?: React.ReactNode
-  /** Small facts strip along the bottom. */
   meta?: string[]
-  /** Strength of the chromatic split. 0.2 subtle, 0.8 heavy. */
   dispersion?: number
-  /** Glass tint. Keep it close to white for a neutral crystal. */
   tint?: string
   background?: string
   foreground?: string
   accent?: string
-  /** CSS font-family used for the in-scene headline. */
   displayFont?: string
   italicHeadline?: boolean
-  /** Pin progress and ignore scroll — for covers and thumbnails. */
   staticProgress?: number
-  /** Extra objects rendered inside the R3F canvas. */
   sceneChildren?: React.ReactNode
-  /** Adds top padding so the copy clears a fixed site header. */
   topInset?: boolean
   className?: string
 }
@@ -470,7 +901,7 @@ export interface PrismHeroProps {
 export function PrismHero({
   eyebrow = "Bevel UI",
   headline = "Refraction",
-  description = "A faceted crystal with real transmission and chromatic dispersion, refracting the headline behind it. No models, no HDRI, no external assets.",
+  description = "",
   action,
   secondaryAction,
   meta = ["Procedural geometry", "Real transmission", "Zero assets"],
@@ -489,41 +920,35 @@ export function PrismHero({
   const sectionRef = React.useRef<HTMLDivElement>(null)
   const progress = React.useRef(0)
   const [reducedMotion, setReducedMotion] = React.useState(false)
-  const [ready, setReady] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
   const prefersReduced = useReducedMotion()
   const controls = useAnimationControls()
 
-  // useSyncExternalStore rather than an effect: the server snapshot keeps
-  // hydration deterministic, there is no cascading re-render on mount, and the
-  // tier re-evaluates for free when the window crosses a breakpoint.
   const quality = React.useSyncExternalStore(
     subscribeToViewport,
     detectQuality,
     () => "medium" as Quality
   )
-  const spec = QUALITY[quality]
+  const spec = QUALITY[quality] ?? QUALITY.medium
 
-  // Transmission is the most expensive thing on the page; there is no reason
-  // to keep paying for it once the hero has scrolled away.
   const stageRef = React.useRef<HTMLDivElement>(null)
   const [onScreen, setOnScreen] = React.useState(true)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   React.useEffect(() => {
     const el = stageRef.current
     if (!el || typeof IntersectionObserver === "undefined") return
     const io = new IntersectionObserver(
       ([entry]) => setOnScreen(entry.isIntersecting),
-      { rootMargin: "120px" }
+      { rootMargin: "0px", threshold: 0.01 }
     )
     io.observe(el)
     return () => io.disconnect()
   }, [])
 
-  // The entrance is decided after hydration, never during render: reading
-  // `document.hidden` (or the reduced-motion hook) while rendering diverges
-  // from the server output and trips a hydration mismatch. rAF is also
-  // throttled in hidden tabs, which would otherwise strand the springs
-  // mid-flight and reveal a half-faded hero when the tab regains focus.
   React.useEffect(() => {
     if (prefersReduced || document.hidden) {
       controls.set("show")
@@ -533,11 +958,6 @@ export function PrismHero({
   }, [controls, prefersReduced])
 
   const railRef = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    const raf = requestAnimationFrame(() => setReady(true))
-    return () => cancelAnimationFrame(raf)
-  }, [])
 
   React.useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -591,8 +1011,7 @@ export function PrismHero({
     <div
       ref={sectionRef}
       className={[
-        "relative w-full",
-        isStatic ? "h-screen" : "h-[260vh]",
+        "relative w-full h-screen min-h-screen overflow-hidden",
         className,
       ]
         .filter(Boolean)
@@ -601,34 +1020,35 @@ export function PrismHero({
     >
       <div
         ref={stageRef}
-        className="sticky top-0 h-screen w-full overflow-hidden"
+        className="relative h-full w-full overflow-hidden"
       >
         {/* Scene ---------------------------------------------------------- */}
-        <div
-          className="absolute inset-0 transition-opacity duration-[1200ms] ease-out"
-          style={{ opacity: ready ? 1 : 0 }}
-        >
-          <Canvas
-            dpr={[1, spec.maxDpr]}
-            camera={{ position: [0, 0, 4.5], fov: 45 }}
-            frameloop={onScreen ? "always" : "never"}
-            gl={{ antialias: false, powerPreference: "high-performance" }}
-          >
-            <Scene
-              headline={headline}
-              headlineColor={foreground}
-              displayFont={displayFont}
-              italic={italicHeadline}
-              progress={progress}
-              reducedMotion={reducedMotion}
-              dispersion={dispersion}
-              tint={tint}
-              moteColor={accent}
-              spec={spec}
-            />
-            {sceneChildren}
-          </Canvas>
-        </div>
+        {mounted && (
+          <div className="absolute inset-0">
+            <WebGLErrorBoundary>
+              <Canvas
+                dpr={[1, spec.maxDpr]}
+                camera={{ position: [0, 0, 4.5], fov: 45 }}
+                frameloop={onScreen ? "always" : "never"}
+                gl={{ antialias: true, powerPreference: "high-performance" }}
+              >
+                <Scene
+                  headline={headline}
+                  headlineColor={foreground}
+                  displayFont={displayFont}
+                  italic={italicHeadline}
+                  progress={progress}
+                  reducedMotion={reducedMotion}
+                  dispersion={dispersion}
+                  tint={tint}
+                  moteColor={accent}
+                  spec={spec}
+                />
+                {sceneChildren}
+              </Canvas>
+            </WebGLErrorBoundary>
+          </div>
+        )}
 
         {/* Copy overlay --------------------------------------------------- */}
         <div
@@ -656,13 +1076,9 @@ export function PrismHero({
             className="flex flex-col gap-6 max-w-xl pointer-events-auto"
           >
             {description && (
-              <motion.p
-                variants={ENTER}
-                className="text-base md:text-lg leading-relaxed font-light"
-                style={{ color: foreground }}
-              >
-                {description}
-              </motion.p>
+              <motion.div variants={ENTER}>
+                <RevertBnWText text={description} foreground={foreground} />
+              </motion.div>
             )}
 
             {(action || secondaryAction) && (
@@ -713,4 +1129,5 @@ export function PrismHero({
     </div>
   )
 }
+
 export default PrismHero

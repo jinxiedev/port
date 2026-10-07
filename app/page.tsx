@@ -1,69 +1,296 @@
-import Image from "next/image";
+"use client"
+
+import * as React from "react"
+import dynamic from "next/dynamic"
+import { ArrowUpRight, Mail, Code2, Database, Layers } from "lucide-react"
+import DiagonalMarqueeCarousel from "@/components/ui/great-ui-diagonal-marquee-carousel"
+import { CinematicFooter } from "@/components/ui/motion-footer"
+import { ImmersivePreloader } from "@/components/ui/immersive-preloader"
+import { AdminGate } from "@/components/admin/admin-gate"
+import { FALLBACK_PROJECTS, getLiveProjects, type Project } from "@/lib/projects"
+
+const PrismHero = dynamic(() => import("@/components/ui/prism-hero"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-screen w-full items-center justify-center bg-[#08080B] text-[#EDE8DF]" />
+  ),
+})
 
 export default function Home() {
+  const [preloaderActive, setPreloaderActive] = React.useState(true)
+  const [projects, setProjects] = React.useState<Project[]>(FALLBACK_PROJECTS)
+
+  // Dynamically fetch live projects from Firestore with instant fallback
+  const refreshProjects = React.useCallback(() => {
+    getLiveProjects().then((data) => {
+      if (data && data.length > 0) {
+        setProjects(data)
+      }
+    })
+  }, [])
+
+  React.useEffect(() => {
+    refreshProjects()
+
+    // Listen for custom project update events from admin panel
+    const handleProjectsUpdated = () => {
+      refreshProjects()
+    }
+    window.addEventListener("projects-updated", handleProjectsUpdated)
+    return () => window.removeEventListener("projects-updated", handleProjectsUpdated)
+  }, [refreshProjects])
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-[#08080B] text-[#EDE8DF] selection:bg-[#D97757]/30 selection:text-[#EDE8DF]">
+      {/* Immersive Preloader with Pure Gaussian Blur-In */}
+      {preloaderActive && (
+        <ImmersivePreloader onComplete={() => setPreloaderActive(false)} />
+      )}
+
+      {/* 1. Pure Prism Hero (Zero Buttons, Pure Liquid & Typography) */}
+      <PrismHero
+        eyebrow="Fullstack Software Engineer"
+        headline="jinshi"
+        meta={[
+          "Go & PostgreSQL",
+          "React & Next.js / TypeScript",
+          "Jakarta, ID (UTC+7)",
+          "Available for Hire",
+        ]}
+        accent="#D97757"
+        background="#08080B"
+        foreground="#EDE8DF"
+      />
+
+      {/* 2. About / Profile Section - Pure Clean Minimalism */}
+      <section id="about" className="relative z-30 max-w-5xl mx-auto px-6 py-28 border-t border-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-16 items-center">
+          {/* Photo Column (Pure 3:4 Ratio, Clean Frame) */}
+          <div className="md:col-span-5 flex justify-center md:justify-start">
+            <div className="relative w-full max-w-[320px] aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 bg-[#0c0c10] shadow-2xl">
+              <img
+                src="https://up.mo0n.qzz.io/yimmr5.jpg"
+                alt="Jinshi"
+                className="w-full h-full object-cover object-center"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+
+          {/* Bio Column - Clean & Calm Understated English */}
+          <div className="md:col-span-7 space-y-6">
+            <div className="space-y-3">
+              <p className="text-xs font-mono uppercase tracking-[0.25em] text-[#D97757]">
+                01 / About
+              </p>
+              <h2 className="text-3xl md:text-5xl font-serif text-white leading-tight">
+                Building durable, end-to-end web systems.
+              </h2>
+            </div>
+
+            <p className="text-sm md:text-base text-white/60 font-light leading-relaxed max-w-xl">
+              Fullstack engineer focused on end-to-end web architectures—from relational data modeling in PostgreSQL &amp; Go backend services, to responsive, zero-jank React/Next.js interfaces.
+            </p>
+
+            <div className="pt-2 text-xs font-mono text-white/40 space-y-1.5">
+              <div>
+                <span className="text-[#D97757]">Stack:</span> Go &bull; PostgreSQL &bull; TypeScript &bull; React &bull; Next.js &bull; Docker &bull; Redis
+              </div>
+              <div>
+                <span className="text-white/60">Status:</span> Open for Full-Time &amp; Freelance &bull; Jakarta (UTC+7)
+              </div>
+            </div>
+
+            <div className="pt-4 flex items-center gap-6 text-xs font-mono uppercase tracking-widest">
+              <a
+                href="mailto:contact@example.com"
+                className="text-[#D97757] hover:text-white transition-colors inline-flex items-center gap-1.5"
+              >
+                <span>Email Me</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </a>
+              <a
+                href="#projects"
+                className="text-white/40 hover:text-white transition-colors"
+              >
+                Selected Works &darr;
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Selected Projects Section (Dynamic Real Projects from Database) */}
+      <section id="projects" className="relative z-30 py-24 space-y-12">
+        <div className="max-w-5xl mx-auto px-6 space-y-3">
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
+            02 / Selected Works
+          </p>
+          <h2 className="text-3xl md:text-4xl font-serif">
+            Systems &amp; Engineering
+          </h2>
+          <p className="text-sm md:text-base text-white/60 max-w-2xl font-light leading-relaxed">
+            Production projects focusing on distributed systems, real-time pipelines, and interface responsiveness.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Diagonal Marquee Carousel Showcase */}
+        <div className="relative w-full overflow-hidden">
+          <DiagonalMarqueeCarousel className="h-[480px] md:h-[600px]" />
         </div>
-      </main>
-    </div>
-  );
+
+        {/* Dynamic Project Grid (Architectural Monograph Canvas) */}
+        <div className="max-w-5xl mx-auto px-6 pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 border border-white/[0.08] divide-y md:divide-y-0 md:divide-x divide-white/[0.08] rounded-2xl overflow-hidden bg-[#0a0a0e]">
+            {projects.slice(0, 6).map((project, idx) => {
+              const indexStr = String(idx + 1).padStart(2, "0")
+              const isFirstRow = idx < 2
+              return (
+                <div
+                  key={project.id}
+                  className={`group p-8 md:p-10 flex flex-col justify-between space-y-8 transition-colors duration-500 hover:bg-white/[0.015] relative ${
+                    isFirstRow ? "border-b border-white/[0.08]" : ""
+                  }`}
+                >
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between text-xs font-mono select-none">
+                      <span className="font-serif text-3xl md:text-4xl text-white/20 group-hover:text-[#D97757] transition-colors duration-500">
+                        {indexStr}
+                      </span>
+                      <span className="text-[10px] tracking-[0.25em] text-[#D97757] uppercase">
+                        // {project.domain || "FULLSTACK APPLICATION"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="font-serif text-2xl md:text-3xl text-[#EDE8DF] group-hover:text-white transition-colors leading-tight">
+                        {project.title}
+                      </h3>
+                      <p className="text-sm text-white/60 font-light leading-relaxed">
+                        {project.description}
+                      </p>
+                    </div>
+
+                    {/* Hero Metric Callout */}
+                    <div className="py-4 border-y border-white/[0.06] flex items-baseline justify-between">
+                      <div>
+                        <div className="font-mono text-2xl md:text-3xl font-light text-white tracking-tight">
+                          {project.metric || "ACTIVE"}
+                        </div>
+                        <span className="block text-[10px] font-mono uppercase tracking-widest text-white/40 mt-1">
+                          {project.metricLabel || "Production Deployment"}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400/90 px-2 py-0.5 rounded border border-emerald-400/20 bg-emerald-400/5">
+                        Production
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs font-mono pt-2 border-t border-white/[0.04]">
+                    <span className="text-white/40 tracking-wider text-[11px] truncate max-w-[200px]">
+                      {project.tags.slice(0, 4).join(" • ")}
+                    </span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <a
+                        href={project.project_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] tracking-widest uppercase text-[#D97757] hover:text-white transition-colors"
+                      >
+                        <span>Live System</span>
+                        <ArrowUpRight className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Technical Principles (Understated & Factual) */}
+      <section className="relative z-30 max-w-5xl mx-auto px-6 py-24 border-t border-white/10 space-y-12">
+        <div className="space-y-3">
+          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
+            03 / Technical Principles
+          </p>
+          <h2 className="text-3xl md:text-4xl font-serif">
+            How I Build Software
+          </h2>
+          <p className="text-sm md:text-base text-white/60 max-w-2xl font-light leading-relaxed">
+            Three core pillars guiding every system: database reliability at the core, 60fps responsiveness on the client, and clean codebases for long-term maintainability.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#D97757]">
+              <Database className="w-4 h-4" />
+              <span>BACKEND &amp; DATA</span>
+            </div>
+            <h4 className="text-lg font-medium text-white">Reliable &amp; Predictable</h4>
+            <p className="text-sm text-white/60 font-light leading-relaxed">
+              Normalized relational schemas, ACID-compliant transactions, consistent REST APIs, and measured query profiling.
+            </p>
+            <div className="pt-2 text-xs font-mono text-white/40 space-y-1">
+              <div>&bull; PostgreSQL, Go, Redis, Docker</div>
+              <div>&bull; Query profiling &amp; cache strategy</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#D97757]">
+              <Layers className="w-4 h-4" />
+              <span>FRONTEND &amp; INTERFACE</span>
+            </div>
+            <h4 className="text-lg font-medium text-white">Fast, Accessible &amp; Clean</h4>
+            <p className="text-sm text-white/60 font-light leading-relaxed">
+              Optimal Core Web Vitals (LCP &lt; 1.2s), keyboard-first navigation, zero layout shift, and smooth 60fps rendering across devices.
+            </p>
+            <div className="pt-2 text-xs font-mono text-white/40 space-y-1">
+              <div>&bull; Next.js, React, TypeScript, Tailwind</div>
+              <div>&bull; 60fps animations &amp; WebGL optimization</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#D97757]">
+              <Code2 className="w-4 h-4" />
+              <span>CODEBASE &amp; TEAM</span>
+            </div>
+            <h4 className="text-lg font-medium text-white">Maintainable &amp; Pragmatic</h4>
+            <p className="text-sm text-white/60 font-light leading-relaxed">
+              Modular architecture, clean git history, automated testing for critical paths, and honest, transparent communication.
+            </p>
+            <div className="pt-2 text-xs font-mono text-white/40 space-y-1">
+              <div>&bull; Clean git commits &amp; code reviews</div>
+              <div>&bull; Clear documentation for humans</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Cinematic Motion Footer (Curtain Reveal + Magnetic Pills) */}
+      <CinematicFooter
+        headline="Interested in working together?"
+        giantText="ENGINEER"
+        marqueeItems={[
+          "Fullstack Software Engineer",
+          "Go & PostgreSQL",
+          "React & Next.js",
+          "Reliable Architecture",
+          "Available for Hire",
+          "Jakarta, ID (UTC+7)",
+        ]}
+        email="contact@example.com"
+        craftedBy="jinshi // Fullstack Engineer"
+      />
+
+      {/* Hidden Admin Portal (Triggered via Ctrl+Shift+A, typing 'admin', ?admin, or footer triple-click) */}
+      <AdminGate />
+    </main>
+  )
 }
