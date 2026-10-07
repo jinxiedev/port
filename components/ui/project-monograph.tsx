@@ -84,19 +84,13 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
             {/* Bottom: Minimalist Telemetry & Tech Details */}
             <div className="relative z-10 pt-4 border-t border-white/[0.06] space-y-3.5">
               {/* Telemetry Metric Readout */}
-              <div className="flex items-baseline justify-between">
-                <div className="space-y-0.5">
-                  <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/40 block">
-                    {project.metricLabel || "CORE TELEMETRY"}
-                  </span>
-                  <span className="font-mono text-xl sm:text-2xl font-light text-[#EDE8DF] tracking-tight">
-                    {project.metric || "ACTIVE"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[9px] font-mono text-white/40">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-emerald-400/90 uppercase tracking-widest">VERIFIED</span>
-                </div>
+              <div className="space-y-0.5">
+                <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/40 block">
+                  {project.metricLabel || "CORE TELEMETRY"}
+                </span>
+                <span className="font-mono text-xl sm:text-2xl font-light text-[#EDE8DF] tracking-tight">
+                  {project.metric || "ACTIVE"}
+                </span>
               </div>
 
               {/* Minimalist Tech Stack & View Link */}
