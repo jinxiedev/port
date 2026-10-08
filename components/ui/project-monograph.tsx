@@ -40,7 +40,7 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
     })
   }, [projects, selectedCategory])
 
-  // Convert filtered projects into Coverflow carousel items (without images)
+  // Convert filtered projects into Coverflow carousel items (with image preview)
   const items: CoverflowCarouselItem[] = React.useMemo(() => {
     return filteredProjects.map((project, idx) => {
       const indexStr = String(idx + 1).padStart(2, "0")
@@ -49,53 +49,78 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
       return {
         id: project.id,
         content: (
-          <div className="relative size-full p-7 sm:p-8 flex flex-col justify-between bg-gradient-to-b from-[#111118] via-[#0c0c11] to-[#07070a] text-[#EDE8DF] overflow-hidden select-none group">
-            {/* Ambient Background Warmth */}
-            <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-[#D97757]/[0.05] blur-3xl pointer-events-none" />
+          <div className="relative size-full flex flex-col justify-between bg-gradient-to-b from-[#13131b] via-[#0c0c11] to-[#08080c] text-[#EDE8DF] overflow-hidden select-none group">
+            {/* Top Image Window */}
+            <div className="relative h-44 w-full overflow-hidden bg-[#161620] shrink-0 border-b border-white/[0.08]">
+              {project.image_url ? (
+                <img
+                  src={project.image_url}
+                  alt={project.title}
+                  className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                  draggable={false}
+                  loading="lazy"
+                />
+              ) : (
+                <div className="size-full flex items-center justify-center bg-[#15151e]">
+                  <span className="font-mono text-[10px] text-white/30 tracking-widest uppercase">
+                    NO PREVIEW
+                  </span>
+                </div>
+              )}
+              {/* Subtle Ambient Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c11] via-transparent to-black/30 pointer-events-none" />
 
-            {/* Faint Architectural Watermark Numeral */}
-            <span className="absolute top-1 right-4 font-serif text-[110px] leading-none font-extralight text-white/[0.03] select-none pointer-events-none tracking-tighter">
-              {indexStr}
-            </span>
-
-            {/* Top Bar: Minimal Editorial Meta */}
-            <div className="relative z-10 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#D97757]" />
-                <span className="text-[10px] font-mono tracking-[0.22em] text-[#D97757] uppercase font-medium">
-                  {project.domain || "SYSTEM"}
+              {/* Top Floating Folio & Domain */}
+              <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-xs pointer-events-none">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0c0c12]/85 backdrop-blur-md border border-white/[0.08]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D97757]" />
+                  <span className="text-[9px] font-mono tracking-widest text-[#D97757] uppercase font-medium">
+                    {project.domain || "SYSTEM"}
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-[#0c0c12]/85 backdrop-blur-md border border-white/[0.08] text-[10px] font-mono text-white/40 tracking-widest">
+                  {indexStr} / {totalStr}
                 </span>
               </div>
-              <span className="text-[11px] font-mono text-white/30 tracking-widest">
-                {indexStr} &mdash; {totalStr}
-              </span>
             </div>
 
-            {/* Middle: Editorial Title & Description */}
-            <div className="relative z-10 space-y-3 my-auto">
-              <h4 className="font-serif text-2xl sm:text-[25px] font-normal text-[#EDE8DF] tracking-tight leading-snug line-clamp-2">
-                {project.title}
-              </h4>
-              <p className="text-[13px] text-white/55 font-light leading-relaxed line-clamp-3">
-                {project.description}
-              </p>
-            </div>
-
-            {/* Bottom: Minimalist Telemetry & Tech Details */}
-            <div className="relative z-10 pt-4 border-t border-white/[0.06] space-y-3.5">
-              {/* Telemetry Metric Readout */}
-              <div className="space-y-0.5">
-                <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/40 block">
-                  {project.metricLabel || "CORE TELEMETRY"}
-                </span>
-                <span className="font-mono text-xl sm:text-2xl font-light text-[#EDE8DF] tracking-tight">
-                  {project.metric || "ACTIVE"}
-                </span>
+            {/* Bottom Content Body */}
+            <div className="p-5 flex-1 flex flex-col justify-between">
+              {/* Title & Description */}
+              <div className="space-y-1.5">
+                <h4 className="font-serif text-xl sm:text-[22px] font-normal text-[#EDE8DF] tracking-tight leading-snug line-clamp-1 group-hover:text-white transition-colors">
+                  {project.title}
+                </h4>
+                <p className="text-xs text-white/55 font-light leading-relaxed line-clamp-2">
+                  {project.description}
+                </p>
               </div>
 
-              {/* Minimalist Tech Stack & View Link */}
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-mono text-white/40 tracking-wider truncate max-w-[200px]">
+              {/* Bottom Telemetry & Actions */}
+              <div className="pt-3 border-t border-white/[0.06] space-y-2.5">
+                <div className="flex items-baseline justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/40 block">
+                      {project.metricLabel || "CORE TELEMETRY"}
+                    </span>
+                    <span className="font-mono text-base sm:text-lg font-light text-[#EDE8DF] tracking-tight">
+                      {project.metric || "ACTIVE"}
+                    </span>
+                  </div>
+
+                  <a
+                    href={project.project_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-mono tracking-widest uppercase text-[#D97757] hover:text-[#EDE8DF] transition-colors shrink-0 group/link"
+                  >
+                    <span>View System</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
+                  </a>
+                </div>
+
+                {/* Minimalist Tech Stack */}
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-white/40 tracking-wider truncate">
                   {project.tags.slice(0, 3).map((tag, i) => (
                     <React.Fragment key={tag}>
                       {i > 0 && <span className="text-white/20">/</span>}
@@ -103,16 +128,6 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
                     </React.Fragment>
                   ))}
                 </div>
-
-                <a
-                  href={project.project_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-mono tracking-widest uppercase text-[#D97757] hover:text-[#EDE8DF] transition-colors shrink-0 group/link"
-                >
-                  <span>View System</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
-                </a>
               </div>
             </div>
           </div>
@@ -136,7 +151,7 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
             System Specifications Monograph
           </h3>
           <p className="text-xs md:text-sm text-white/50 max-w-xl font-light leading-relaxed">
-            Interactive 3D Coverflow of production architectures, low-level protocols, and runtime telemetry without duplicate imagery.
+            Interactive 3D Coverflow of production architectures, low-level protocols, and runtime telemetry.
           </p>
         </div>
 
@@ -167,7 +182,7 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
         </div>
       </div>
 
-      {/* 3D Coverflow Carousel (Zero Images, Pure Architectural Dossier Content) */}
+      {/* 3D Coverflow Carousel */}
       <div className="w-full overflow-hidden">
         <CoverflowCarousel
           items={items}
@@ -175,11 +190,11 @@ export function ProjectMonograph({ projects, className = "" }: ProjectMonographP
           onIndexChange={setCarouselIndex}
           loop={true}
           cardWidth={370}
-          cardHeight={390}
-          containerHeight={440}
-          spacing={260}
+          cardHeight={415}
+          containerHeight={470}
+          spacing={270}
           depth={160}
-          rotation={32}
+          rotation={30}
           scaleStep={0.14}
           autoplay={false}
           className="w-full"
