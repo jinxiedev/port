@@ -31,16 +31,15 @@ export interface WorksWheelProps extends Omit<
   sectionDescription?: string;
 }
 
-/* Geometry tuned for dramatic presence without viewport clipping */
-const CARD_H = 0.35; // front card height, of the stage
-const CARD_MAX_W = 0.34; // ... but never wider than this much of the stage
+/* Geometry tuned for bold, immersive presence without viewport clipping */
+const CARD_H = 0.50; // front card height (slightly bigger than original 0.48)
+const CARD_MAX_W = 0.48; // max width ratio (slightly bigger than original 0.46)
 const CARD_RATIO = 1.45; // card width / height
 const STEP = 40; // degrees between cards on the drum
-const DRUM = 2.15; // drum radius, in card heights
-const LENS = 2.65; // perspective distance
-const RING_R = 0.88; // ring radius
-const BOW = 1.35; // arc radius
-const TITLE = 0.12; // ring label size
+const DRUM = 2.22; // drum radius, in card heights
+const LENS = 2.75; // perspective distance
+const BOW = 1.60; // arc radius
+const TITLE = 0.124; // ring label size
 const CULL = 1.8;
 
 const WHEEL_UNITS = 900;
@@ -122,22 +121,39 @@ export function WorksWheel({
 
   const metrics = React.useMemo(() => {
     const { w, h } = stage;
-    const isMobile = w > 0 && w < 640;
-    const isShort = h > 0 && h < 768;
+    const stageW = w || 1200;
+    const stageH = h || 800;
+    const isMobile = stageW < 640;
 
-    const cardMaxWFactor = isMobile ? 0.72 : (isShort ? 0.38 : CARD_MAX_W);
-    const cardHFactor = isMobile ? 0.28 : (isShort ? 0.30 : CARD_H);
+    // 1. Front card size in 3D mode: slightly larger than original (0.50 * stageH)
+    const cardMaxWFactor = isMobile ? 0.84 : CARD_MAX_W;
+    const cardHFactor = isMobile ? 0.38 : CARD_H;
     const cardW = Math.min(
-      (h || 800) * cardHFactor * CARD_RATIO,
-      (w || 1200) * cardMaxWFactor,
+      stageH * cardHFactor * CARD_RATIO,
+      stageW * cardMaxWFactor,
     );
     const cardH = cardW / CARD_RATIO;
     const drumR = cardH * DRUM;
-    const ringRFactor = isMobile ? 0.84 : (isShort ? 0.82 : RING_R);
-    const ringR = cardH * ringRFactor;
+
+    // 2. 2D Ring Geometry: mathematically bounded to fill the stage as large as possible
+    // without ever cropping any card top, bottom, left, or right.
+    // For a circle of cards, each card has width ~ (2*PI*ringR / count) * 0.84
+    // and height = width / 1.45.
+    // Outer extent in Y from center is: ringR + (cardH_ring / 2) ≈ 1.18 * ringR.
+    // Outer extent in X from center is: ringR + (cardW_ring / 2) ≈ 1.26 * ringR.
+    const safeMarginY = isMobile ? 26 : 40;
+    const safeMarginX = isMobile ? 20 : 36;
+    const maxRingRY = Math.max(90, (stageH / 2 - safeMarginY) / 1.18);
+    const maxRingRX = Math.max(90, (stageW / 2 - safeMarginX) / 1.26);
+
+    // Maximize ring radius while guaranteeing zero crop in both dimensions:
+    const ringR = Math.min(maxRingRY, maxRingRX);
+
+    // Scaling each card face so it fills the circumference evenly and prominently:
     const ringScale = count
-      ? clamp((((2 * Math.PI * ringR) / count) * 0.82) / (cardW || 1), 0.18, 1)
+      ? clamp((((2 * Math.PI * ringR) / count) * 0.84) / (cardW || 1), 0.18, 1)
       : 1;
+
     return {
       cardW,
       cardH,
@@ -146,7 +162,7 @@ export function WorksWheel({
       drumR,
       bow: cardH * (isMobile ? 0.95 : BOW),
       depth: cardH * LENS,
-      title: Math.max(22, cardH * TITLE),
+      title: Math.max(26, Math.min(54, ringR * 0.22)),
     };
   }, [stage, count]);
 
@@ -475,12 +491,12 @@ export function WorksWheel({
       </ol>
 
       {/* Bottom subtle progress & scroll prompt */}
-      <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20">
+      <div className="pointer-events-none absolute bottom-4 md:bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 z-20">
         <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.25em] text-white/40">
           <span>{sticky ? "Scroll to Explore" : "Drag or Click to Explore"}</span>
           <span className="animate-bounce">↓</span>
         </div>
-        <div className="w-32 h-[2px] bg-white/10 rounded-full overflow-hidden">
+        <div className="w-28 md:w-32 h-[2px] bg-white/10 rounded-full overflow-hidden">
           <div
             className="h-full bg-[#D97757] transition-all duration-150"
             style={{ width: `${clamp(((active + 1) / count) * 100, 15, 100)}%` }}
