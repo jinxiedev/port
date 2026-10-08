@@ -138,26 +138,17 @@ export default function Home() {
       </section>
 
       {/* 3. Selected Projects Section (Dynamic Real Projects from Database) */}
-      <section id="projects" className="relative z-30 py-24 space-y-12">
-        <div className="max-w-5xl mx-auto px-6 space-y-3">
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
-            02 / Selected Works
-          </p>
-          <h2 className="text-3xl md:text-4xl font-serif">
-            Systems &amp; Engineering
-          </h2>
-          <p className="text-sm md:text-base text-white/60 max-w-2xl font-light leading-relaxed">
-            Production projects focusing on distributed systems, real-time pipelines, and interface responsiveness.
-          </p>
-        </div>
-
-        {/* 3D Interactive Works Wheel Showcase (Sticky Scroll, No BG, No Border) */}
+      <section id="projects" className="relative z-30">
+        {/* 3D Interactive Works Wheel Showcase (Sticky Scroll with Integrated Stage Header) */}
         <WorksWheel
           items={projects.map((p) => ({
             title: p.title,
             image: p.image_url,
             href: p.project_url,
           }))}
+          categoryTag="02 / Selected Works"
+          sectionTitle="Systems & Engineering"
+          sectionDescription="Production projects focusing on distributed systems, real-time pipelines, and interface responsiveness."
           label="Works '26"
           action="Launch"
           sticky={true}
@@ -165,7 +156,7 @@ export default function Home() {
         />
 
         {/* Architectural Monograph & Detailed Project Dossier */}
-        <div className="max-w-5xl mx-auto px-4 md:px-6 pt-10">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 pt-16 pb-24">
           <ProjectMonograph projects={projects} />
         </div>
       </section>

@@ -23,18 +23,24 @@ export interface WorksWheelProps extends Omit<
   action?: string;
   /** Enables sticky window scrolling to drive the wheel. @default true */
   sticky?: boolean;
+  /** Category badge above title @default "02 / Selected Works" */
+  categoryTag?: string;
+  /** Section heading @default "Systems & Engineering" */
+  sectionTitle?: string;
+  /** Section description */
+  sectionDescription?: string;
 }
 
-/* Geometry tuned for dramatic, immersive presence */
-const CARD_H = 0.48; // front card height, of the stage
-const CARD_MAX_W = 0.46; // ... but never wider than this much of the stage
+/* Geometry tuned for dramatic presence without viewport clipping */
+const CARD_H = 0.35; // front card height, of the stage
+const CARD_MAX_W = 0.34; // ... but never wider than this much of the stage
 const CARD_RATIO = 1.45; // card width / height
 const STEP = 40; // degrees between cards on the drum
-const DRUM = 2.22; // drum radius, in card heights
-const LENS = 2.75; // perspective distance
-const RING_R = 1.18; // ring radius
-const BOW = 1.72; // arc radius
-const TITLE = 0.124; // ring label size
+const DRUM = 2.15; // drum radius, in card heights
+const LENS = 2.65; // perspective distance
+const RING_R = 0.88; // ring radius
+const BOW = 1.35; // arc radius
+const TITLE = 0.12; // ring label size
 const CULL = 1.8;
 
 const WHEEL_UNITS = 900;
@@ -73,6 +79,9 @@ export function WorksWheel({
   label = "Works '26",
   action = "Launch",
   sticky = true,
+  categoryTag,
+  sectionTitle,
+  sectionDescription,
   className,
   ...props
 }: WorksWheelProps) {
@@ -82,6 +91,7 @@ export function WorksWheel({
   const cardRefs = React.useRef<(HTMLElement | null)[]>([]);
   const labelRef = React.useRef<HTMLDivElement>(null);
   const titleRef = React.useRef<HTMLDivElement>(null);
+  const sectionHeaderRef = React.useRef<HTMLDivElement>(null);
 
   const turn = React.useRef(0);
   const target = React.useRef(0);
@@ -113,14 +123,20 @@ export function WorksWheel({
   const metrics = React.useMemo(() => {
     const { w, h } = stage;
     const isMobile = w > 0 && w < 640;
-    const cardMaxWFactor = isMobile ? 0.76 : CARD_MAX_W;
-    const cardHFactor = isMobile ? 0.40 : CARD_H;
-    const cardW = Math.min(h * cardHFactor * CARD_RATIO, w * cardMaxWFactor);
+    const isShort = h > 0 && h < 768;
+
+    const cardMaxWFactor = isMobile ? 0.72 : (isShort ? 0.38 : CARD_MAX_W);
+    const cardHFactor = isMobile ? 0.28 : (isShort ? 0.30 : CARD_H);
+    const cardW = Math.min(
+      (h || 800) * cardHFactor * CARD_RATIO,
+      (w || 1200) * cardMaxWFactor,
+    );
     const cardH = cardW / CARD_RATIO;
     const drumR = cardH * DRUM;
-    const ringR = cardH * (isMobile ? 1.05 : RING_R);
+    const ringRFactor = isMobile ? 0.84 : (isShort ? 0.82 : RING_R);
+    const ringR = cardH * ringRFactor;
     const ringScale = count
-      ? clamp((((2 * Math.PI * ringR) / count) * 0.82) / (cardW || 1), 0.16, 1)
+      ? clamp((((2 * Math.PI * ringR) / count) * 0.82) / (cardW || 1), 0.18, 1)
       : 1;
     return {
       cardW,
@@ -128,9 +144,9 @@ export function WorksWheel({
       ringR,
       ringScale,
       drumR,
-      bow: cardH * (isMobile ? 1.0 : BOW),
+      bow: cardH * (isMobile ? 0.95 : BOW),
       depth: cardH * LENS,
-      title: Math.max(28, cardH * TITLE),
+      title: Math.max(22, cardH * TITLE),
     };
   }, [stage, count]);
 
@@ -174,6 +190,9 @@ export function WorksWheel({
         if (face) face.style.transform = `scale(${lerp(ringScale, 1, m)})`;
       }
 
+      if (sectionHeaderRef.current) {
+        sectionHeaderRef.current.style.opacity = String(Math.max(0, 1 - m * 2.5));
+      }
       if (labelRef.current) labelRef.current.style.opacity = String(Math.max(0, 1 - m * 2));
       if (titleRef.current) titleRef.current.style.opacity = String(clamp((m - 0.15) * 1.5, 0, 1));
       const near = clamp(Math.round(pos), 0, last);
@@ -366,11 +385,38 @@ export function WorksWheel({
 
   const overlayElements = (
     <>
+      {/* Section Header at rest (fades out as wheel unfolds into 3D) */}
+      {(categoryTag || sectionTitle) && (
+        <div
+          ref={sectionHeaderRef}
+          style={{ opacity: 1 }}
+          className="pointer-events-none absolute top-6 left-6 md:top-10 md:left-12 lg:top-14 lg:left-16 z-20 max-w-sm sm:max-w-md md:max-w-xl transition-opacity duration-200"
+        >
+          <div className="space-y-1.5 md:space-y-2">
+            {categoryTag && (
+              <p className="text-xs font-mono uppercase tracking-[0.2em] text-[#D97757]">
+                {categoryTag}
+              </p>
+            )}
+            {sectionTitle && (
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif text-white tracking-tight">
+                {sectionTitle}
+              </h2>
+            )}
+            {sectionDescription && (
+              <p className="text-xs md:text-sm text-white/60 font-light leading-relaxed hidden sm:block max-w-md">
+                {sectionDescription}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Center Ring label when at rest */}
       <div
         ref={labelRef}
+        style={{ opacity: 1, fontSize: metrics.title }}
         className="pointer-events-none absolute inset-0 grid place-items-center tracking-tight font-serif text-[#EDE8DF] select-none z-10"
-        style={{ fontSize: metrics.title }}
       >
         <div className="text-center space-y-2">
           <span className="block text-xs font-mono uppercase tracking-[0.3em] text-[#D97757]">
@@ -388,6 +434,7 @@ export function WorksWheel({
       {/* Front-card project title - positioned in top-left quadrant so it NEVER overlaps center 3D cards */}
       <div
         ref={titleRef}
+        style={{ opacity: 0 }}
         className="pointer-events-none absolute top-6 left-6 md:top-10 md:left-12 lg:top-14 lg:left-16 z-20 max-w-[280px] sm:max-w-xs md:max-w-md transition-opacity duration-200"
       >
         <div className="space-y-1.5 md:space-y-2">
