@@ -120,7 +120,7 @@ export default function Home() {
 
             <div className="pt-4 flex items-center gap-6 text-xs font-mono uppercase tracking-widest">
               <a
-                href="mailto:contact@example.com"
+                href="mailto:me@jinshi.me"
                 className="text-[#D97757] hover:text-white transition-colors inline-flex items-center gap-1.5"
               >
                 <span>Email Me</span>
@@ -219,7 +219,8 @@ export default function Home() {
           "Available for Hire",
           "Jakarta, ID (UTC+7)",
         ]}
-        email="contact@example.com"
+        email="me@jinshi.me"
+        githubUrl="https://github.com/jinxiedev"
         craftedBy="jinshi // Fullstack Engineer"
       />
 

@@ -252,8 +252,8 @@ export function CinematicFooter({
     "Zero Slop Code",
     "Clean Engineering",
   ],
-  email = "contact@example.com",
-  githubUrl = "https://github.com",
+  email = "me@jinshi.me",
+  githubUrl = "https://github.com/jinxiedev",
   craftedBy = "Fullstack Engineer",
   className,
 }: CinematicFooterProps) {
